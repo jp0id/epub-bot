@@ -153,7 +153,7 @@ public class EpubService {
             if (tagName.equals("br")) return;
             for (Node child : element.childNodes()) flattenDom(child, result);
         } else if (node instanceof TextNode) {
-            String text = ((TextNode) node).text().trim();
+            String text = telegraphService.cleanText(((TextNode) node).text()).trim();
             if (!text.isEmpty()) {
                 Map<String, Object> pWrapper = Map.of("tag", "p", "children", List.of(text));
                 result.add(pWrapper);

@@ -33,6 +33,12 @@ public class TelegraphService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final Pattern FLOOD_WAIT_PATTERN = Pattern.compile("FLOOD_WAIT_(\\d+)");
 
+    // 1. 匹配中文标点前的空格： 空格 + [标点]
+    private static final Pattern SPACE_BEFORE_PUNCTUATION = Pattern.compile("\\s+([。，、；：？！])");
+    // 2. 匹配中文字符之间的空格： 中文 + 空格 + 中文
+    private static final Pattern SPACE_BETWEEN_CHINESE = Pattern.compile("(?<=[\\u4e00-\\u9fa5])\\s+(?=[\\u4e00-\\u9fa5])");
+
+
     @Data
     @AllArgsConstructor
     public static class PageResult {
@@ -42,6 +48,19 @@ public class TelegraphService {
         private List<Map<String, Object>> content;
         private String usedToken;
     }
+
+    public String cleanText(String text) {
+        if (text == null) return "";
+
+        // 1. 去除中文标点前的空格 (解决句号在行首的核心代码)
+        text = SPACE_BEFORE_PUNCTUATION.matcher(text).replaceAll("$1");
+
+        // 2. 去除汉字之间的空格 (EPUB 里的换行符变成空格后，汉字间距会变大，这里将其复原)
+        text = SPACE_BETWEEN_CHINESE.matcher(text).replaceAll("");
+
+        return text;
+    }
+
 
     public TelegraphService(@Value("${telegraph.access-token:}") String initialToken) {
         if (initialToken != null && !initialToken.isEmpty()) {
@@ -236,7 +255,7 @@ public class TelegraphService {
 
             for (Node child : element.childNodes()) {
                 if (child instanceof TextNode) {
-                    String text = ((TextNode) child).text();
+                    String text = cleanText(((TextNode) child).text());
                     if (!text.isEmpty()) children.add(text);
                 } else if (child instanceof Element) {
                     boolean childForceInline = forceInline || "p".equals(targetTag) || INLINE_TAGS.contains(targetTag);
