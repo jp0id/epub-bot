@@ -223,8 +223,12 @@ public class EpubService {
             Map<String, Object> pWrapper = new HashMap<>();
             pWrapper.put("tag", "p");
             pWrapper.put("children", pChildren);
+
+            Map<Stirng, Object> figure = new HashMap<>();
+            figure.put("tag", "figure");
+            figure.put("children", List.of(pWrapper));
         
-            content.add(pWrapper);
+            content.add(figure);
 
             telegraphService.editPage(pageToEdit.getPath(), pageToEdit.getTitle(), content, tokenToUse);
 
