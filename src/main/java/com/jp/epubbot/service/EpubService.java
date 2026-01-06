@@ -208,7 +208,7 @@ public class EpubService {
                 Map<String, Object> nextLink = new HashMap<>();
                 nextLink.put("tag", "a");
                 nextLink.put("attrs", Map.of("href", nextUrl));
-                nextLink.put("children", List.of("👉 下一章  "));
+                nextLink.put("children", List.of("👉 下一页  "));
                 pChildren.add(nextLink);
                 pChildren.add("   |   ");
             }
@@ -222,7 +222,6 @@ public class EpubService {
 
             Map<String, Object> pWrapper = new HashMap<>();
             pWrapper.put("tag", "p");
-            pWrapper.put("attrs", Map.of("align", "right")); // 添加右对齐属性
             pWrapper.put("children", pChildren);
         
             content.add(pWrapper);
