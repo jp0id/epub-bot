@@ -10,6 +10,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
+import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -53,6 +54,8 @@ public class EpubService {
                 String html = new String(res.getData(), StandardCharsets.UTF_8);
                 Document doc = Jsoup.parse(html);
                 Element body = doc.body();
+                handleInlineNotes(body);
+
                 List<Map<String, Object>> nodes = new ArrayList<>();
                 flattenDom(body, nodes);
 
@@ -102,6 +105,93 @@ public class EpubService {
         }
 
         return pageUrls;
+    }
+
+    /**
+     * 处理内联注脚：支持标准跳转注脚和多看/掌阅式属性注脚
+     */
+    private void handleInlineNotes(Element body) {
+        Elements links = body.select("a");
+
+        for (int i = links.size() - 1; i >= 0; i--) {
+            Element link = links.get(i);
+            String noteContent = null;
+            boolean isImgFootnote = false;
+
+            Element img = link.selectFirst("img");
+            if (img != null) {
+                if (img.hasAttr("alt") && !img.attr("alt").trim().isEmpty()) {
+                    String alt = img.attr("alt").trim();
+                    if (alt.length() > 5 || containsChinese(alt)) {
+                        noteContent = alt;
+                        isImgFootnote = true;
+                    }
+                }
+                if (noteContent == null && img.hasAttr("zy-footnote")) {
+                    noteContent = img.attr("zy-footnote").trim();
+                    isImgFootnote = true;
+                }
+            }
+
+            if (noteContent == null && link.hasAttr("href")) {
+                String href = link.attr("href");
+                String linkText = link.text();
+
+                boolean looksLikeFootnote = href.startsWith("#") &&
+                                            (linkText.contains("注") ||
+                                             link.hasClass("duokan-footnote") ||
+                                             link.hasClass("epub-footnote") ||
+                                             isNumericFootnote(link));
+
+                if (looksLikeFootnote) {
+                    try {
+                        String targetId = href.substring(1);
+                        Element targetElement = body.getElementById(targetId);
+                        if (targetElement != null) {
+                            noteContent = targetElement.text().trim();
+                            removeFootnoteDefinition(targetElement);
+                        }
+                    } catch (Exception e) {
+                        log.debug("查找注脚目标失败: {}", href);
+                    }
+                }
+            }
+
+            if (noteContent != null && !noteContent.isEmpty()) {
+                String newText = "（注：" + noteContent + "）";
+                TextNode textNode = new TextNode(newText);
+
+                if (link.parent() != null && link.parent().tagName().equalsIgnoreCase("sup")) {
+                    link.parent().replaceWith(textNode);
+                } else {
+                    link.replaceWith(textNode);
+                }
+
+                log.debug("已内联注脚: {}", truncate(noteContent, 20));
+            }
+        }
+    }
+
+    private boolean containsChinese(String str) {
+        return str.chars().anyMatch(c -> c >= 0x4E00 && c <= 0x9FA5);
+    }
+
+    private void removeFootnoteDefinition(Element targetElement) {
+        if (targetElement.tagName().equalsIgnoreCase("li")) {
+            targetElement.remove();
+        } else if (targetElement.text().length() < 500) {
+            targetElement.remove();
+        }
+    }
+
+    private String truncate(String str, int len) {
+        return str.length() > len ? str.substring(0, len) + "..." : str;
+    }
+
+    private boolean isNumericFootnote(Element link) {
+        String text = link.text().trim().replace("[", "").replace("]", "");
+        if (link.parent() != null && link.parent().tagName().equals("sup")) return true;
+        return text.matches("\\d+");
     }
 
     private void appendFooterLinks(TelegraphService.PageResult pageToEdit, String nextUrl, String bookmarkToken, String tokenToUse) {
@@ -160,9 +250,11 @@ public class EpubService {
             }
         }
     }
+
     private boolean isContentBlock(String tagName) {
         return List.of("p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "ul", "ol", "pre", "figure", "hr").contains(tagName);
     }
+
     private int estimateLength(Map<String, Object> node) {
         int len = 0;
         if (node.containsKey("children")) {
