@@ -10,6 +10,6 @@ services:
       - TELEGRAM_BOT_USERNAME=你的BotName
       - TELEGRAPH_AUTHOR_NAME=EpubReader
       - APP_CHARS_PER_PAGE=4000
-      - BOT_ADMIN_ID=201728830,201728830
+      - TELEGRAM_BOT_ADMINS=201728830,201728830
     volumes:
       - ./data:/app/data
