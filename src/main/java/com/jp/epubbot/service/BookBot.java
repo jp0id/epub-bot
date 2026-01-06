@@ -1,5 +1,6 @@
 package com.jp.epubbot.service;
 
+import io.micrometer.common.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -12,6 +13,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.InputStream;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -24,13 +26,17 @@ public class BookBot extends TelegramLongPollingBot {
     private final BookmarkService bookmarkService;
     private final String botUsername;
     private final Set<Long> processingUsers = ConcurrentHashMap.newKeySet();
+    private List<String> admin = null;
 
     public BookBot(DefaultBotOptions options, String botToken, String botUsername,
-                   EpubService epubService, BookmarkService bookmarkService) {
+                   EpubService epubService, BookmarkService bookmarkService, String adminList) {
         super(options, botToken);
         this.botUsername = botUsername;
         this.epubService = epubService;
         this.bookmarkService = bookmarkService;
+        if (StringUtils.isNotEmpty(adminList)) {
+            this.admin = Arrays.stream(adminList.split(",")).toList();
+        }
 
         try {
             User me = execute(new GetMe());
@@ -51,8 +57,11 @@ public class BookBot extends TelegramLongPollingBot {
             Long chatId = update.getMessage().getChatId();
             String text = update.getMessage().getText();
 
-            // 1. 处理文件
             if (update.getMessage().hasDocument()) {
+                if (admin != null && !admin.contains(String.valueOf(chatId))) {
+                    sendText(chatId, "无权上传书籍! 请联系管理员 @pm_jp_bot");
+                    return;
+                }
                 Document doc = update.getMessage().getDocument();
                 if (doc.getFileName() != null && doc.getFileName().toLowerCase().endsWith(".epub")) {
                     handleEpubFile(chatId, doc);
@@ -62,7 +71,6 @@ public class BookBot extends TelegramLongPollingBot {
                 return;
             }
 
-            // 2. 处理命令
             if (text != null) {
                 if (text.startsWith("/start")) {
                     handleStartCommand(chatId, text);
@@ -71,6 +79,8 @@ public class BookBot extends TelegramLongPollingBot {
                 } else if (text.equals("/clear_bookmarks")) {
                     bookmarkService.clearBookmarks(chatId);
                     sendText(chatId, "🗑️ 书签已清空。");
+                } else {
+                    sendText(chatId, "不支持的命令！");
                 }
             }
         }

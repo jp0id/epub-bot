@@ -11,6 +11,8 @@ import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
+import java.util.List;
+
 @Configuration
 public class BotConfig {
 
@@ -20,7 +22,9 @@ public class BotConfig {
     @Value("${telegram.bot.username}")
     private String botUsername;
 
-    // 1. 配置代理选项
+    @Value("${telegram.bot.admins:}")
+    private String adminList;
+
     @Bean
     public DefaultBotOptions defaultBotOptions() {
         DefaultBotOptions options = new DefaultBotOptions();
@@ -35,7 +39,7 @@ public class BotConfig {
 
     @Bean
     public BookBot bookBot(DefaultBotOptions options, EpubService epubService, BookmarkService bookmarkService) {
-        return new BookBot(options, botToken, botUsername, epubService, bookmarkService);
+        return new BookBot(options, botToken, botUsername, epubService, bookmarkService, adminList);
     }
 
     @Bean

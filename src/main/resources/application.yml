@@ -5,6 +5,7 @@ telegram:
   bot:
     username: ""
     token: "7589476199:xxxx"
+    admins: 201728830    # 多个用户请使用英文逗号隔开
 
 telegraph:
   access-token: "" # 如果为空，程序启动时会自动创建一个临时账户
