@@ -1,0 +1,14 @@
+server:
+  port: 18088
+
+telegram:
+  bot:
+    username: ""
+    token: "7589476199:xxxx"
+
+telegraph:
+  access-token: "" # 如果为空，程序启动时会自动创建一个临时账户
+  author-name: "EpubReaderBot"
+
+app:
+  chars-per-page: 3000     # 分页字数限制 Telegraph 限制约 64KB JSON 数据，建议 2000-3000 字

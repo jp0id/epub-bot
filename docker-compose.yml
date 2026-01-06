@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  epub-bot:
+    build: .
+    image: epub-bot
+    container_name: epub-bot
+    restart: always
+    environment:
+      - TELEGRAM_BOT_TOKEN=你的Token
+      - TELEGRAM_BOT_USERNAME=你的BotName
+      - TELEGRAPH_AUTHOR_NAME=EpubReader
+      - APP_CHARS_PER_PAGE=3000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
