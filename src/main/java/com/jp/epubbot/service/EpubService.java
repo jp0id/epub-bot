@@ -222,8 +222,9 @@ public class EpubService {
 
             Map<String, Object> pWrapper = new HashMap<>();
             pWrapper.put("tag", "p");
+            pWrapper.put("attrs", Map.of("align", "right")); // 添加右对齐属性
             pWrapper.put("children", pChildren);
-            pWrapper.put("attrs", Map.of("style", "text-align: right;"));
+        
             content.add(pWrapper);
 
             telegraphService.editPage(pageToEdit.getPath(), pageToEdit.getTitle(), content, tokenToUse);
