@@ -224,7 +224,7 @@ public class EpubService {
             pWrapper.put("tag", "p");
             pWrapper.put("children", pChildren);
 
-            Map<Stirng, Object> figure = new HashMap<>();
+            Map<String, Object> figure = new HashMap<>();
             figure.put("tag", "figure");
             figure.put("children", List.of(pWrapper));
         
