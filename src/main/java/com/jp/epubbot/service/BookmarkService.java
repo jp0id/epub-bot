@@ -1,13 +1,24 @@
 package com.jp.epubbot.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 @Service
 public class BookmarkService {
+
+    private static final String DATA_DIR = "data";
+    private static final String BOOKMARK_FILE = DATA_DIR + "/bookmarks.json";
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final Map<String, BookmarkInfo> tokenMap = new ConcurrentHashMap<>();
 
@@ -20,6 +31,47 @@ public class BookmarkService {
         private String url;
     }
 
+    @Data
+    public static class BookmarkData {
+        private Map<String, BookmarkInfo> tokenMap;
+        private Map<Long, List<BookmarkInfo>> userBookmarks;
+    }
+
+    @PostConstruct
+    public void init() {
+        File dir = new File(DATA_DIR);
+        if (!dir.exists()) dir.mkdirs();
+
+        File file = new File(BOOKMARK_FILE);
+        if (file.exists()) {
+            try {
+                BookmarkData data = objectMapper.readValue(file, BookmarkData.class);
+                if (data.getTokenMap() != null) {
+                    this.tokenMap.putAll(data.getTokenMap());
+                }
+                if (data.getUserBookmarks() != null) {
+                    this.userBookmarks.putAll(data.getUserBookmarks());
+                }
+                log.info("📂 已加载书签数据: {} 个用户, {} 个活跃链接。", userBookmarks.size(), tokenMap.size());
+            } catch (IOException e) {
+                log.error("加载书签文件失败", e);
+            }
+        }
+    }
+
+    private synchronized void saveData() {
+        try {
+            BookmarkData data = new BookmarkData();
+            data.setTokenMap(this.tokenMap);
+            data.setUserBookmarks(this.userBookmarks);
+
+            File file = new File(BOOKMARK_FILE);
+            objectMapper.writeValue(file, data);
+        } catch (IOException e) {
+            log.error("保存书签数据失败", e);
+        }
+    }
+
     public String createBookmarkToken(String bookName, String chapterTitle, String url) {
         String token = "bm_" + UUID.randomUUID().toString().substring(0, 8);
         BookmarkInfo info = new BookmarkInfo();
@@ -28,6 +80,7 @@ public class BookmarkService {
         info.setUrl(url);
 
         tokenMap.put(token, info);
+        saveData();
         return token;
     }
 
@@ -37,6 +90,7 @@ public class BookmarkService {
 
     public void saveBookmarkForUser(Long userId, BookmarkInfo info) {
         userBookmarks.computeIfAbsent(userId, k -> new ArrayList<>()).add(info);
+        saveData();
     }
 
     public List<BookmarkInfo> getUserBookmarks(Long userId) {
@@ -45,5 +99,6 @@ public class BookmarkService {
 
     public void clearBookmarks(Long userId) {
         userBookmarks.remove(userId);
+        saveData();
     }
 }

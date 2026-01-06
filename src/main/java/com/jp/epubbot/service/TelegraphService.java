@@ -1,6 +1,8 @@
 package com.jp.epubbot.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +13,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -23,6 +27,10 @@ public class TelegraphService {
     @Value("${telegraph.author-name}")
     private String authorName;
 
+    // 数据存储目录
+    private static final String DATA_DIR = "data";
+    private static final String TOKEN_FILE = DATA_DIR + "/telegraph_tokens.json";
+
     private static final int WAIT_THRESHOLD_SECONDS = 30;
 
     private final List<String> tokenPool = Collections.synchronizedList(new ArrayList<>());
@@ -32,12 +40,6 @@ public class TelegraphService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final Pattern FLOOD_WAIT_PATTERN = Pattern.compile("FLOOD_WAIT_(\\d+)");
-
-    // 1. 匹配中文标点前的空格： 空格 + [标点]
-    private static final Pattern SPACE_BEFORE_PUNCTUATION = Pattern.compile("\\s+([。，、；：？！])");
-    // 2. 匹配中文字符之间的空格： 中文 + 空格 + 中文
-    private static final Pattern SPACE_BETWEEN_CHINESE = Pattern.compile("(?<=[\\u4e00-\\u9fa5])\\s+(?=[\\u4e00-\\u9fa5])");
-
 
     @Data
     @AllArgsConstructor
@@ -49,23 +51,44 @@ public class TelegraphService {
         private String usedToken;
     }
 
-    public String cleanText(String text) {
-        if (text == null) return "";
-
-        // 1. 去除中文标点前的空格 (解决句号在行首的核心代码)
-        text = SPACE_BEFORE_PUNCTUATION.matcher(text).replaceAll("$1");
-
-        // 2. 去除汉字之间的空格 (EPUB 里的换行符变成空格后，汉字间距会变大，这里将其复原)
-        text = SPACE_BETWEEN_CHINESE.matcher(text).replaceAll("");
-
-        return text;
-    }
-
-
     public TelegraphService(@Value("${telegraph.access-token:}") String initialToken) {
         if (initialToken != null && !initialToken.isEmpty()) {
             tokenPool.add(initialToken);
-            currentAccessToken = initialToken;
+        }
+    }
+
+    @PostConstruct
+    public void init() {
+        File dir = new File(DATA_DIR);
+        if (!dir.exists()) dir.mkdirs();
+
+        File file = new File(TOKEN_FILE);
+        if (file.exists()) {
+            try {
+                List<String> savedTokens = objectMapper.readValue(file, new TypeReference<List<String>>() {});
+                for (String t : savedTokens) {
+                    if (!tokenPool.contains(t)) {
+                        tokenPool.add(t);
+                    }
+                }
+                log.info("📂 已加载 {} 个 Telegraph Token。", tokenPool.size());
+            } catch (IOException e) {
+                log.error("加载 Token 文件失败", e);
+            }
+        }
+
+        if (!tokenPool.isEmpty()) {
+            currentAccessToken = tokenPool.get(0);
+        }
+    }
+
+    private synchronized void saveTokens() {
+        try {
+            File file = new File(TOKEN_FILE);
+            objectMapper.writeValue(file, tokenPool);
+            log.info("💾 Token 已保存到文件。");
+        } catch (IOException e) {
+            log.error("保存 Token 失败", e);
         }
     }
 
@@ -86,21 +109,13 @@ public class TelegraphService {
         if (newToken != null) {
             tokenPool.add(newToken);
             currentAccessToken = newToken;
-            log.info("🆕 池中无可用 Token，已创建新账户: {}...", newToken.substring(0, 8));
+            log.info("🆕 已创建新账户: {}...", newToken.substring(0, 8));
+            saveTokens();
+
             return newToken;
         }
 
         return currentAccessToken;
-    }
-
-    private boolean isTokenInCooldown(String token) {
-        Long unlockTime = tokenCooldowns.get(token);
-        if (unlockTime == null) return false;
-        if (System.currentTimeMillis() > unlockTime) {
-            tokenCooldowns.remove(token);
-            return false;
-        }
-        return true;
     }
 
     private String createNewAccount() {
@@ -117,124 +132,14 @@ public class TelegraphService {
         return null;
     }
 
-    public PageResult createPage(String title, List<Map<String, Object>> contentNodes) {
-        String url = "https://api.telegra.ph/createPage";
-        int maxRetries = 10; // 增加重试次数，因为包含了短等待的情况
+    private static final Pattern SPACE_BEFORE_PUNCTUATION = Pattern.compile("\\s+([。，、；：？！])");
+    private static final Pattern SPACE_BETWEEN_CHINESE = Pattern.compile("(?<=[\\u4e00-\\u9fa5])\\s+(?=[\\u4e00-\\u9fa5])");
 
-        for (int i = 0; i < maxRetries; i++) {
-            String tokenToUse = getValidToken();
-
-            try {
-                String contentJson = objectMapper.writeValueAsString(contentNodes);
-                Map<String, Object> request = new HashMap<>();
-                request.put("access_token", tokenToUse);
-                request.put("title", title);
-                request.put("content", contentJson);
-                request.put("return_content", false);
-
-                Map response = restTemplate.postForObject(url, request, Map.class);
-
-                if (response != null && (Boolean) response.get("ok")) {
-                    Map result = (Map) response.get("result");
-                    return new PageResult(
-                            (String) result.get("path"),
-                            (String) result.get("url"),
-                            title,
-                            contentNodes,
-                            tokenToUse
-                    );
-                } else {
-                    String errorMsg = (String) response.get("error");
-                    if (handleFloodWait(tokenToUse, errorMsg)) {
-                        continue;
-                    } else {
-                        log.error("不可恢复的 API 错误 (Token: {}): {}", tokenToUse.substring(0, 8), errorMsg);
-                        return null;
-                    }
-                }
-            } catch (Exception e) {
-                log.error("CreatePage 请求异常", e);
-                try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 编辑页面 (必须用原 Token，所以只能等待，不能切换)
-     */
-    public void editPage(String path, String title, List<Map<String, Object>> contentNodes, String requiredToken) {
-        if (isTokenInCooldown(requiredToken)) {
-            log.warn("Token {} 冷却中，跳过编辑 {}", requiredToken.substring(0, 8), path);
-            return;
-        }
-
-        String url = "https://api.telegra.ph/editPage";
-        for (int i = 0; i < 3; i++) {
-            try {
-                String contentJson = objectMapper.writeValueAsString(contentNodes);
-                Map<String, Object> request = new HashMap<>();
-                request.put("access_token", requiredToken);
-                request.put("title", title);
-                request.put("content", contentJson);
-                request.put("path", path);
-                request.put("return_content", false);
-
-                Map response = restTemplate.postForObject(url, request, Map.class);
-                if (response != null && (Boolean) response.get("ok")) {
-                    return; // 成功
-                } else {
-                    String errorMsg = (String) (response != null ? response.get("error") : "Unknown");
-                    if (errorMsg != null && errorMsg.startsWith("FLOOD_WAIT")) {
-                        Matcher matcher = FLOOD_WAIT_PATTERN.matcher(errorMsg);
-                        if (matcher.find()) {
-                            int waitSeconds = Integer.parseInt(matcher.group(1));
-                            if (waitSeconds <= WAIT_THRESHOLD_SECONDS) {
-                                log.info("编辑限流 {}s，等待中...", waitSeconds);
-                                Thread.sleep((waitSeconds + 1) * 1000L);
-                                continue;
-                            } else {
-                                log.warn("编辑限流 {}s (超过阈值)，放弃编辑。", waitSeconds);
-                                tokenCooldowns.put(requiredToken, System.currentTimeMillis() + (waitSeconds + 2) * 1000L);
-                                return;
-                            }
-                        }
-                    }
-                    log.warn("编辑失败: {}", errorMsg);
-                    return;
-                }
-            } catch (Exception e) {
-                log.error("EditPage 异常", e);
-                return;
-            }
-        }
-    }
-
-    private boolean handleFloodWait(String token, String errorMsg) {
-        if (errorMsg == null) return false;
-
-        if (errorMsg.startsWith("FLOOD_WAIT")) {
-            Matcher matcher = FLOOD_WAIT_PATTERN.matcher(errorMsg);
-            int waitSeconds = 5;
-            if (matcher.find()) {
-                waitSeconds = Integer.parseInt(matcher.group(1));
-            }
-
-            if (waitSeconds <= WAIT_THRESHOLD_SECONDS) {
-                log.info("⏳ 触发限流 {}s (<= {}s)，原地休眠等待...", waitSeconds, WAIT_THRESHOLD_SECONDS);
-                try {
-                    Thread.sleep((waitSeconds + 1) * 1000L);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            } else {
-                log.info("🚫 触发限流 {}s (> {}s)，标记冷却并切换账号...", waitSeconds, WAIT_THRESHOLD_SECONDS);
-                long cooldownUntil = System.currentTimeMillis() + (waitSeconds + 2) * 1000L;
-                tokenCooldowns.put(token, cooldownUntil);
-            }
-            return true;
-        }
-        return false;
+    public String cleanText(String text) {
+        if (text == null) return "";
+        text = SPACE_BEFORE_PUNCTUATION.matcher(text).replaceAll("$1");
+        text = SPACE_BETWEEN_CHINESE.matcher(text).replaceAll("");
+        return text;
     }
 
     private static final Set<String> BLOCK_TAGS = Set.of("p", "h3", "h4", "blockquote", "aside", "figure", "ul", "ol", "hr");
@@ -271,5 +176,73 @@ public class TelegraphService {
             }
         }
         return null;
+    }
+
+    private boolean isTokenInCooldown(String token) {
+        Long unlockTime = tokenCooldowns.get(token);
+        if (unlockTime == null) return false;
+        if (System.currentTimeMillis() > unlockTime) {
+            tokenCooldowns.remove(token);
+            return false;
+        }
+        return true;
+    }
+
+    public PageResult createPage(String title, List<Map<String, Object>> contentNodes) {
+        String url = "https://api.telegra.ph/createPage";
+        int maxRetries = 10;
+        for (int i = 0; i < maxRetries; i++) {
+            String tokenToUse = getValidToken();
+
+            try {
+                String contentJson = objectMapper.writeValueAsString(contentNodes);
+                Map<String, Object> request = new HashMap<>();
+                request.put("access_token", tokenToUse);
+                request.put("title", title);
+                request.put("content", contentJson);
+                request.put("return_content", false);
+
+                Map response = restTemplate.postForObject(url, request, Map.class);
+
+                if (response != null && (Boolean) response.get("ok")) {
+                    Map result = (Map) response.get("result");
+                    return new PageResult((String) result.get("path"), (String) result.get("url"), title, contentNodes, tokenToUse);
+                } else {
+                    if (handleFloodWait(tokenToUse, (String) response.get("error"))) continue;
+                    else return null;
+                }
+            } catch (Exception e) { try { Thread.sleep(1000); } catch (InterruptedException ignored) {} }
+        }
+        return null;
+    }
+
+    public void editPage(String path, String title, List<Map<String, Object>> contentNodes, String requiredToken) {
+        if (isTokenInCooldown(requiredToken)) return;
+        String url = "https://api.telegra.ph/editPage";
+        try {
+            String contentJson = objectMapper.writeValueAsString(contentNodes);
+            Map<String, Object> request = new HashMap<>();
+            request.put("access_token", requiredToken);
+            request.put("title", title);
+            request.put("content", contentJson);
+            request.put("path", path);
+            request.put("return_content", false);
+            restTemplate.postForObject(url, request, Map.class);
+        } catch (Exception e) { log.error("EditPage failed", e); }
+    }
+
+    private boolean handleFloodWait(String token, String errorMsg) {
+        if (errorMsg != null && errorMsg.startsWith("FLOOD_WAIT")) {
+            Matcher matcher = FLOOD_WAIT_PATTERN.matcher(errorMsg);
+            int waitSeconds = 5;
+            if (matcher.find()) waitSeconds = Integer.parseInt(matcher.group(1));
+            if (waitSeconds <= WAIT_THRESHOLD_SECONDS) {
+                try { Thread.sleep((waitSeconds + 1) * 1000L); } catch (InterruptedException ignored) {}
+            } else {
+                tokenCooldowns.put(token, System.currentTimeMillis() + (waitSeconds + 2) * 1000L);
+            }
+            return true;
+        }
+        return false;
     }
 }
