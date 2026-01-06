@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   epub-bot:
-    image: jp0id/epub-bot:latest
+    image: jp0id/epub_bot:latest
     container_name: epub-bot
     restart: always
     environment:
