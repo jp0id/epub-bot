@@ -101,4 +101,25 @@ public class BookmarkService {
         userBookmarks.remove(userId);
         saveData();
     }
+
+    public String findAllBooks() {
+        Map<String, String> booksInfo = new HashMap<>();
+        Set<String> bookNames = new HashSet<>();
+        this.tokenMap.forEach((k, bookInfo)->{
+            String bookName = bookInfo.getBookName();
+            bookNames.add(bookName);
+        });
+
+        for (String bookName : bookNames) {
+            for (BookmarkInfo info : this.tokenMap.values()) {
+                if (info.getChapterTitle().contains("(1)")) {
+                    booksInfo.put(bookName, info.getUrl());
+                }
+            }
+        }
+
+        StringBuilder sb = new StringBuilder("🔖 **书籍列表:**\n\n");
+        booksInfo.forEach((bookName, url)-> sb.append("[").append(bookName).append("](").append(url).append(")\n"));
+        return sb.toString();
+    }
 }

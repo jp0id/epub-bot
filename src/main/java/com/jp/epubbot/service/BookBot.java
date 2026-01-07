@@ -79,6 +79,8 @@ public class BookBot extends TelegramLongPollingBot {
                 } else if (text.equals("/clear_bookmarks")) {
                     bookmarkService.clearBookmarks(chatId);
                     sendText(chatId, "🗑️ 书签已清空。");
+                } else if (text.equals("/list")) {
+                    sendText(chatId, bookmarkService.findAllBooks());
                 } else {
                     sendText(chatId, "不支持的命令！");
                 }
@@ -180,6 +182,8 @@ public class BookBot extends TelegramLongPollingBot {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(text);
+        message.setParseMode("Markdown");
+        message.setDisableWebPagePreview(true);
         try {
             execute(message);
         } catch (TelegramApiException e) {
