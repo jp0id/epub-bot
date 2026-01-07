@@ -6,7 +6,9 @@ import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.GetMe;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.Document;
+import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -72,6 +74,7 @@ public class BookBot extends TelegramLongPollingBot {
             }
 
             if (text != null) {
+                Integer messageId = update.getMessage().getMessageId();
                 if (text.startsWith("/start")) {
                     handleStartCommand(chatId, text);
                 } else if (text.equals("/bookmarks")) {
@@ -82,9 +85,18 @@ public class BookBot extends TelegramLongPollingBot {
                 } else if (text.equals("/list")) {
                     sendTextAsMarkdown(chatId, bookmarkService.findAllBooks());
                 } else {
-                    sendText(chatId, "不支持的命令 | Unsupported command");
+                    sendText(chatId, "[" + text + "]为不支持的命令 | Unsupported command");
                 }
+                deleteMessage(chatId, messageId);
             }
+        }
+    }
+
+    private void deleteMessage(long chatId, int messageId) {
+        try {
+            execute(new DeleteMessage(String.valueOf(chatId), messageId));
+        } catch (TelegramApiException e) {
+            log.error("delete message error: [{}]", e.toString());
         }
     }
 
@@ -133,7 +145,7 @@ public class BookBot extends TelegramLongPollingBot {
             return;
         }
         processingUsers.add(chatId);
-        sendText(chatId, "📚 收到书籍: " + doc.getFileName() + "\n正在处理，请稍候...");
+        Message fetchMessage = sendText(chatId, "📚 收到书籍: " + doc.getFileName() + "\n正在处理，请稍候...");
 
         CompletableFuture.runAsync(() -> {
             try {
@@ -158,6 +170,7 @@ public class BookBot extends TelegramLongPollingBot {
                         message.setParseMode("Markdown");
                         message.setDisableWebPagePreview(true);
                         execute(message);
+                        deleteMessage(chatId, fetchMessage.getMessageId());
                     }
                 }
             } catch (Exception e) {
@@ -169,15 +182,17 @@ public class BookBot extends TelegramLongPollingBot {
         });
     }
 
-    private void sendText(Long chatId, String text) {
+    private Message sendText(Long chatId, String text) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(text);
+        Message execute = null;
         try {
-            execute(message);
+            execute = execute(message);
         } catch (TelegramApiException e) {
             log.error("Send failed", e);
         }
+        return execute;
     }
 
     private void sendTextAsMarkdown(Long chatId, String text) {
