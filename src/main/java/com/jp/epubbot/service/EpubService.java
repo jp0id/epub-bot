@@ -29,7 +29,7 @@ public class EpubService {
     private final TelegraphService telegraphService;
     private final BookmarkService bookmarkService;
 
-    @Value("${app.chars-per-page}")
+    @Value("${app.chars-per-page:3000}")
     private int charsPerPage;
 
     @Value("${telegram.bot.username}")

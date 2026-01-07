@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 @Service
 public class TelegraphService {
 
-    @Value("${telegraph.author-name}")
+    @Value("${telegraph.author-name:EpubReaderBot}")
     private String authorName;
 
     // 数据存储目录
