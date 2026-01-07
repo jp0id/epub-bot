@@ -80,9 +80,9 @@ public class BookBot extends TelegramLongPollingBot {
                     bookmarkService.clearBookmarks(chatId);
                     sendText(chatId, "🗑️ 书签已清空。");
                 } else if (text.equals("/list")) {
-                    sendText(chatId, bookmarkService.findAllBooks());
+                    sendTextAsMarkdown(chatId, bookmarkService.findAllBooks());
                 } else {
-                    sendText(chatId, "不支持的命令！");
+                    sendText(chatId, "不支持的命令 | Unsupported command");
                 }
             }
         }
@@ -123,16 +123,7 @@ public class BookBot extends TelegramLongPollingBot {
         if (sb.length() > 4000) {
             sendText(chatId, sb.substring(0, 3500) + "\n... (列表过长，仅显示部分)");
         } else {
-            SendMessage msg = new SendMessage();
-            msg.setChatId(chatId);
-            msg.setText(sb.toString());
-            msg.setParseMode("Markdown");
-            msg.setDisableWebPagePreview(true);
-            try {
-                execute(msg);
-            } catch (TelegramApiException e) {
-                log.error("发送书签失败", e);
-            }
+            sendTextAsMarkdown(chatId, sb.toString());
         }
     }
 
@@ -179,6 +170,17 @@ public class BookBot extends TelegramLongPollingBot {
     }
 
     private void sendText(Long chatId, String text) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(text);
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            log.error("Send failed", e);
+        }
+    }
+
+    private void sendTextAsMarkdown(Long chatId, String text) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(text);
