@@ -59,7 +59,7 @@ public class BookBot extends TelegramLongPollingBot {
 
             if (update.getMessage().hasDocument()) {
                 if (admin != null && !admin.contains(String.valueOf(chatId))) {
-                    sendText(chatId, "无权上传书籍! 请联系管理员 @pm_jp_bot");
+                    sendText(chatId, "无权上传文件! 请联系管理员 @pm_jp_bot");
                     return;
                 }
                 Document doc = update.getMessage().getDocument();
@@ -96,7 +96,7 @@ public class BookBot extends TelegramLongPollingBot {
 
             if (info != null) {
                 bookmarkService.saveBookmarkForUser(chatId, info);
-                sendText(chatId, "✅ **书签已保存！**\n\n📖 书名: " + info.getBookName() + "\n📑 章节: " + info.getChapterTitle() + "\n\n输入 /bookmarks 查看所有书签。");
+                sendText(chatId, "✅ **书签已保存！**\n\n📖 书名: " + info.getBookName() + "\n📑 页码: " + info.getChapterTitle() + "\n\n输入 /bookmarks 查看所有书签。");
             } else {
                 sendText(chatId, "❌ 书签链接已失效或不存在。");
             }
@@ -148,7 +148,7 @@ public class BookBot extends TelegramLongPollingBot {
                         sendText(chatId, "❌ 解析失败或内容为空。");
                     } else {
                         StringBuilder sb = new StringBuilder("✅ **处理完成！**\n");
-                        sb.append("共 ").append(links.size()).append(" 章。\n\n");
+                        sb.append("共 ").append(links.size()).append(" 页。\n\n");
                         sb.append("📖 [点击开始阅读](").append(links.get(0)).append(")\n\n");
                         sb.append("💡 阅读时点击底部的 **[保存书签]** 即可记录进度。");
 

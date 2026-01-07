@@ -70,7 +70,7 @@ public class EpubService {
 
                         if (currentPage != null) {
                             pageUrls.add(currentPage.getUrl());
-                            String bookmarkToken = bookmarkService.createBookmarkToken(finalTitle, pageTitle, currentPage.getUrl());
+                            bookmarkService.createBookmarkToken(finalTitle, pageTitle, currentPage.getUrl());
 
                             if (previousPage != null) {
                                 String prevToken = bookmarkService.createBookmarkToken(finalTitle, previousPage.getTitle(), previousPage.getUrl());
@@ -85,7 +85,7 @@ public class EpubService {
                     }
                 }
             } catch (Exception e) {
-                log.error("解析章节失败", e);
+                log.error("解析书籍失败", e);
             }
         }
 
@@ -116,7 +116,6 @@ public class EpubService {
         for (int i = links.size() - 1; i >= 0; i--) {
             Element link = links.get(i);
             String noteContent = null;
-            boolean isImgFootnote = false;
 
             Element img = link.selectFirst("img");
             if (img != null) {
@@ -124,22 +123,18 @@ public class EpubService {
                     String alt = img.attr("alt").trim();
                     if (alt.length() > 5 || containsChinese(alt)) {
                         noteContent = alt;
-                        isImgFootnote = true;
                     }
                 }
                 if (noteContent == null && img.hasAttr("zy-footnote")) {
                     noteContent = img.attr("zy-footnote").trim();
-                    isImgFootnote = true;
                 }
             }
 
             if (noteContent == null && link.hasAttr("href")) {
                 String href = link.attr("href");
-                String linkText = link.text();
 
                 boolean looksLikeFootnote = href.startsWith("#") &&
-                                            (linkText.contains("注") ||
-                                             link.hasClass("duokan-footnote") ||
+                                            (link.hasClass("duokan-footnote") ||
                                              link.hasClass("epub-footnote") ||
                                              isNumericFootnote(link));
 

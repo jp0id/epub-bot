@@ -118,6 +118,7 @@ public class TelegraphService {
         return currentAccessToken;
     }
 
+    @SuppressWarnings("rawtypes")
     private String createNewAccount() {
         String url = "https://api.telegra.ph/createAccount?short_name=reader&author_name=" + authorName;
         try {
@@ -188,6 +189,7 @@ public class TelegraphService {
         return true;
     }
 
+    @SuppressWarnings("rawtypes")
     public PageResult createPage(String title, List<Map<String, Object>> contentNodes) {
         String url = "https://api.telegra.ph/createPage";
         int maxRetries = 10;
