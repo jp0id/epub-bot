@@ -5,16 +5,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.GetMe;
+import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.Document;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
+import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
+import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.InputStream;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -42,6 +46,7 @@ public class BookBot extends TelegramLongPollingBot {
 
         try {
             User me = execute(new GetMe());
+            this.setBotCommands();
             log.info("✅ Bot 启动成功: {}", me.getFirstName());
         } catch (TelegramApiException e) {
             throw new RuntimeException("Bot 连接失败", e);
@@ -205,6 +210,24 @@ public class BookBot extends TelegramLongPollingBot {
             execute(message);
         } catch (TelegramApiException e) {
             log.error("Send failed", e);
+        }
+    }
+
+    private void setBotCommands() {
+        List<BotCommand> commands = new ArrayList<>();
+        commands.add(new BotCommand("list", "所有书籍"));
+        commands.add(new BotCommand("bookmarks", "书签列表"));
+        commands.add(new BotCommand("clear_bookmarks", "清除书签"));
+        SetMyCommands setCommands = new SetMyCommands();
+        setCommands.setCommands(commands);
+        setCommands.setScope(new BotCommandScopeDefault()); // 默认范围
+        // 如果您希望命令在所有私聊中可用，请使用以下代码
+        // setCommands.setScope(new BotCommandScopeAllPrivateChats());
+        // 如果您希望命令在所有公共聊天中可用，请使用以下代码
+        // setCommands.setScope(new BotCommandScopeAllPublicChats());
+        try {
+            execute(setCommands);
+        } catch (TelegramApiException ignore) {
         }
     }
 }
