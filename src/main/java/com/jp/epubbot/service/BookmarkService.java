@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Service
@@ -103,8 +104,7 @@ public class BookmarkService {
     }
 
     public String findAllBooks() {
-        Map<String, String> booksInfo = new HashMap<>();
-
+        Map<String, String> booksInfo = new TreeMap<>();
         this.tokenMap.values().stream()
                 .filter(info -> {
                     String title = info.getChapterTitle();
@@ -116,8 +116,10 @@ public class BookmarkService {
                 .forEach(info -> booksInfo.put(info.getBookName(), info.getUrl()));
 
         StringBuilder sb = new StringBuilder("🔖 **书籍列表:**\n\n");
+        AtomicInteger index = new AtomicInteger(1);
         booksInfo.forEach((bookName, url) ->
-                sb.append("[").append(bookName).append("](").append(url).append(")\n")
+                sb.append(index.getAndIncrement())
+                        .append(". [").append(bookName).append("](").append(url).append(")\n")
         );
         return sb.toString();
     }
