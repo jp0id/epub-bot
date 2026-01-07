@@ -104,22 +104,21 @@ public class BookmarkService {
 
     public String findAllBooks() {
         Map<String, String> booksInfo = new HashMap<>();
-        Set<String> bookNames = new HashSet<>();
-        this.tokenMap.forEach((k, bookInfo)->{
-            String bookName = bookInfo.getBookName();
-            bookNames.add(bookName);
-        });
 
-        for (String bookName : bookNames) {
-            for (BookmarkInfo info : this.tokenMap.values()) {
-                if (info.getChapterTitle().contains("(1)")) {
-                    booksInfo.put(bookName, info.getUrl());
-                }
-            }
-        }
+        this.tokenMap.values().stream()
+                .filter(info -> {
+                    String title = info.getChapterTitle();
+                    String name = info.getBookName();
+                    return title != null && name != null
+                           && title.contains(name)
+                           && title.contains("(1)");
+                })
+                .forEach(info -> booksInfo.put(info.getBookName(), info.getUrl()));
 
         StringBuilder sb = new StringBuilder("🔖 **书籍列表:**\n\n");
-        booksInfo.forEach((bookName, url)-> sb.append("[").append(bookName).append("](").append(url).append(")\n"));
+        booksInfo.forEach((bookName, url) ->
+                sb.append("[").append(bookName).append("](").append(url).append(")\n")
+        );
         return sb.toString();
     }
 }
