@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPUB Bot Mini App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            /* Default background (fallback) */
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            /* Telegram theme variables */
+            background-color: var(--tg-theme-bg-color, #667eea);
+            background-image: var(--tg-theme-bg-gradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+            color: var(--tg-theme-text-color, #333);
+            min-height: 100vh;
+            padding: 20px;
+            transition: background-color 0.3s ease;
+        }
+
+        .container {
+            background: var(--tg-theme-secondary-bg-color, white);
+            color: var(--tg-theme-text-color, #333);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+        }
+
+        .test-text {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #4a5568;
+            margin: 30px 0;
+            padding: 20px;
+            border: 3px dashed #cbd5e0;
+            border-radius: 15px;
+            background: #f7fafc;
+            text-align: center;
+        }
+
+        .info {
+            color: #718096;
+            line-height: 1.6;
+            margin-top: 30px;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .buttons-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+            transform: translateY(-2px);
+        }
+
+        .books-section {
+            margin-top: 40px;
+            display: none;
+        }
+
+        .books-section.visible {
+            display: block;
+        }
+
+        .books-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .books-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .books-count {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        .books-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .book-card {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .book-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            border-color: #667eea;
+        }
+
+        .book-name {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .book-url {
+            color: #718096;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+            word-break: break-all;
+        }
+
+        .book-link {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.9rem;
+            transition: background 0.3s;
+        }
+
+        .book-link:hover {
+            background: #5a67d8;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+            font-size: 1.1rem;
+        }
+
+        .loading-spinner {
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .telegram-badge {
+            display: inline-block;
+            background: #0088cc;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            margin-top: 30px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .telegram-badge:hover {
+            transform: translateY(-2px);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .test-text {
+                font-size: 2.5rem;
+            }
+
+            .buttons-container {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>EPUB Bot Mini App</h1>
+        <div class="buttons-container">
+            <button class="btn btn-primary" onclick="loadAllBooks()">
+                📚 Get All Books
+            </button>
+            <button class="btn btn-secondary" onclick="showTestInfo()">
+                ℹ️ App Info
+            </button>
+        </div>
+
+        <div id="booksSection" class="books-section">
+            <div class="books-header">
+                <div class="books-title">Available Books</div>
+                <div class="books-count" id="booksCount">0 books</div>
+            </div>
+
+            <div id="loading" class="loading" style="display: none;">
+                <div class="loading-spinner"></div>
+                Loading books...
+            </div>
+
+            <div id="errorContainer" class="error" style="display: none;"></div>
+
+            <div id="booksList" class="books-list">
+                <!-- Books will be loaded here -->
+            </div>
+        </div>
+
+        <div class="footer">
+            <a href="https://telegram.org" class="telegram-badge" target="_blank">
+                Powered by Telegram
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Telegram Web App initialization
+        let tg = null;
+        try {
+            tg = window.Telegram?.WebApp;
+            if (tg) {
+                // Initialize Telegram Web App
+                tg.expand(); // Expand to full screen
+                tg.ready(); // Notify Telegram Web App is ready
+
+                // Apply Telegram theme colors
+                applyTelegramTheme(tg);
+
+                // Setup back button
+                if (tg.isVersionAtLeast('6.1')) {
+                    tg.BackButton.show();
+                    tg.onEvent('backButtonClicked', () => {
+                        tg.close();
+                    });
+                }
+
+                // Log user info (if available)
+                const user = tg.initDataUnsafe?.user;
+                if (user) {
+                    console.log('Telegram user:', user);
+                }
+            }
+        } catch (error) {
+            console.warn('Telegram Web App not available:', error);
+        }
+
+        // Apply Telegram theme to CSS variables
+        function applyTelegramTheme(tg) {
+            const root = document.documentElement;
+
+            // Set CSS variables from Telegram theme
+            root.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#667eea');
+            root.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#333');
+            root.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#718096');
+            root.style.setProperty('--tg-theme-link-color', tg.themeParams.link_color || '#667eea');
+            root.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#667eea');
+            root.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || 'white');
+            root.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || 'white');
+
+            // Adjust button colors based on theme
+            const primaryBtn = document.querySelector('.btn-primary');
+            if (primaryBtn && tg.themeParams.button_color) {
+                primaryBtn.style.background = tg.themeParams.button_color;
+                primaryBtn.style.color = tg.themeParams.button_text_color;
+            }
+        }
+
+        // API base URL
+        const API_BASE = window.location.origin + '/api/miniapp';
+
+        // DOM elements
+        const booksSection = document.getElementById('booksSection');
+        const booksList = document.getElementById('booksList');
+        const booksCount = document.getElementById('booksCount');
+        const loading = document.getElementById('loading');
+        const errorContainer = document.getElementById('errorContainer');
+
+        // Show error message
+        function showError(message) {
+            errorContainer.textContent = message;
+            errorContainer.style.display = 'block';
+            loading.style.display = 'none';
+        }
+
+        // Hide error message
+        function hideError() {
+            errorContainer.style.display = 'none';
+        }
+
+        // Load all books from API
+        async function loadAllBooks() {
+            // Show loading and hide previous error
+            loading.style.display = 'block';
+            hideError();
+            booksList.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/books`);
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to load books');
+                }
+
+                // Hide loading
+                loading.style.display = 'none';
+
+                // Show books section
+                booksSection.classList.add('visible');
+
+                // Update count
+                booksCount.textContent = `${data.count} book${data.count !== 1 ? 's' : ''}`;
+
+                // Render books
+                if (data.books && data.books.length > 0) {
+                    data.books.forEach(book => {
+                        const bookElement = document.createElement('div');
+                        bookElement.className = 'book-card';
+                        bookElement.innerHTML = `
+                            <div class="book-name">${escapeHtml(book.name)}</div>
+                            <div class="book-url">${escapeHtml(book.url)}</div>
+                            <a href="${escapeHtml(book.url)}" class="book-link" target="_blank">
+                                Open in Telegraph
+                            </a>
+                        `;
+                        booksList.appendChild(bookElement);
+                    });
+                } else {
+                    booksList.innerHTML = '<div class="loading">No books found. Upload some EPUB files to get started!</div>';
+                }
+
+            } catch (error) {
+                showError(`Error: ${error.message}`);
+            }
+        }
+
+        // Show app info
+        async function showTestInfo() {
+            hideError();
+            booksSection.classList.remove('visible');
+
+            try {
+                const response = await fetch(`${API_BASE}/info`);
+                const data = await response.json();
+
+                alert(`App Info:\n\nName: ${data.name}\nVersion: ${data.version}\nDescription: ${data.description}`);
+            } catch (error) {
+                showError(`Error loading app info: ${error.message}`);
+            }
+        }
+
+        // Simple HTML escape function
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Load books on page load (optional)
+        // window.addEventListener('DOMContentLoaded', () => {
+        //     // Uncomment to auto-load books on page load
+        //     // loadAllBooks();
+        // });
+    </script>
+
+</body>
+</html>

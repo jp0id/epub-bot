@@ -8,6 +8,9 @@ import org.telegram.telegrambots.meta.api.methods.GetMe;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
+import org.telegram.telegrambots.meta.api.methods.menubutton.SetChatMenuButton;
+import org.telegram.telegrambots.meta.api.objects.menubutton.MenuButtonWebApp;
+import org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo;
 import org.telegram.telegrambots.meta.api.objects.Document;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -31,15 +34,17 @@ public class BookBot extends TelegramLongPollingBot {
     private final EpubService epubService;
     private final BookmarkService bookmarkService;
     private final String botUsername;
+    private final String webappUrl;
     private final Set<Long> processingUsers = ConcurrentHashMap.newKeySet();
     private List<String> admin = null;
 
     public BookBot(DefaultBotOptions options, String botToken, String botUsername,
-                   EpubService epubService, BookmarkService bookmarkService, String adminList) {
+                   EpubService epubService, BookmarkService bookmarkService, String adminList, String webappUrl) {
         super(options, botToken);
         this.botUsername = botUsername;
         this.epubService = epubService;
         this.bookmarkService = bookmarkService;
+        this.webappUrl = webappUrl;
         if (StringUtils.isNotEmpty(adminList)) {
             this.admin = Arrays.stream(adminList.split(",")).toList();
         }
@@ -47,8 +52,9 @@ public class BookBot extends TelegramLongPollingBot {
         try {
             User me = execute(new GetMe());
             this.setBotCommands();
+            this.setWebAppButton();
             String baseUrl = options.getBaseUrl();
-            log.info("✅ Bot 启动成功: {}, baseUrl: [{}]", me.getFirstName(), baseUrl);
+            log.info("✅ Bot 启动成功: {}, baseUrl: [{}], webappUrl: [{}]", me.getFirstName(), baseUrl, webappUrl);
         } catch (TelegramApiException e) {
             throw new RuntimeException("Bot 连接失败", e);
         }
@@ -229,6 +235,32 @@ public class BookBot extends TelegramLongPollingBot {
         try {
             execute(setCommands);
         } catch (TelegramApiException ignore) {
+        }
+    }
+
+    private void setWebAppButton() {
+        if (webappUrl == null || webappUrl.trim().isEmpty()) {
+            log.info("Web App URL not configured, skipping menu button setup");
+            return;
+        }
+
+        try {
+            SetChatMenuButton menuButton = new SetChatMenuButton();
+            MenuButtonWebApp webAppButton = null;
+            try {
+                java.lang.reflect.Constructor<MenuButtonWebApp> constructor = MenuButtonWebApp.class.getDeclaredConstructor(String.class, WebAppInfo.class);
+                constructor.setAccessible(true);
+                webAppButton = constructor.newInstance("📚 阅读器", new WebAppInfo(webappUrl));
+            } catch (Exception e) {
+                log.warn("Failed to create MenuButtonWebApp via reflection: {}", e.getMessage());
+                return;
+            }
+            menuButton.setMenuButton(webAppButton);
+
+            execute(menuButton);
+            log.info("Web App menu button set successfully: {}", webappUrl);
+        } catch (TelegramApiException e) {
+            log.warn("Failed to set Web App menu button: {}", e.getMessage());
         }
     }
 }

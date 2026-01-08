@@ -123,4 +123,30 @@ public class BookmarkService {
         );
         return sb.toString();
     }
+
+    public List<Map<String, String>> getAllBooksStructured() {
+        Map<String, String> booksInfo = new TreeMap<>();
+        this.tokenMap.values().stream()
+                .filter(info -> {
+                    String title = info.getChapterTitle();
+                    String name = info.getBookName();
+                    return title != null && name != null
+                           && title.contains(name)
+                           && title.contains("(1)");
+                })
+                .forEach(info -> booksInfo.put(info.getBookName(), info.getUrl()));
+
+        List<Map<String, String>> books = new ArrayList<>();
+        AtomicInteger index = new AtomicInteger(1);
+        booksInfo.forEach((bookName, url) -> {
+            Map<String, String> book = new HashMap<>();
+            book.put("id", "book_" + index.getAndIncrement());
+            book.put("name", bookName);
+            book.put("url", url);
+            book.put("firstPageTitle", bookName + " (1)");
+            books.add(book);
+        });
+
+        return books;
+    }
 }

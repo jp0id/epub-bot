@@ -28,6 +28,9 @@ public class BotConfig {
     @Value("${telegram.bot.base:https://api.telegram.org}")
     private String baseUrl;
 
+    @Value("${telegram.bot.webapp-url:}")
+    private String webappUrl;
+
     @Bean
     public DefaultBotOptions defaultBotOptions() {
         DefaultBotOptions options = new DefaultBotOptions();
@@ -37,7 +40,7 @@ public class BotConfig {
 
     @Bean
     public BookBot bookBot(DefaultBotOptions options, EpubService epubService, BookmarkService bookmarkService) {
-        return new BookBot(options, botToken, botUsername, epubService, bookmarkService, adminList);
+        return new BookBot(options, botToken, botUsername, epubService, bookmarkService, adminList, webappUrl);
     }
 
     @Bean
