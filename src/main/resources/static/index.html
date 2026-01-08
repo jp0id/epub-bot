@@ -759,8 +759,8 @@
                     groupHeader.className = 'bookmark-group-header';
                     groupHeader.innerHTML = `
                             <div class="group-title">
-                                <span class="group-book-name">${escapeHtml(group.bookName)}</span>
-                                <span class="group-count">(${group.count} 个书签)</span>
+                                <div class="group-book-name">${escapeHtml(group.bookName)}</div>
+                                <div class="group-count">(${group.count} 个书签)</div>
                             </div>
                         `;
                     bookmarksList.appendChild(groupHeader);
