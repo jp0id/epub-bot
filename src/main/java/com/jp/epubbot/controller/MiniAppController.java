@@ -6,12 +6,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @RestController
@@ -63,15 +61,36 @@ public class MiniAppController {
     }
 
     @GetMapping("/books")
-    public Map<String, Object> getAllBooks() {
+    public Map<String, Object> getAllBooks(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         Map<String, Object> response = new HashMap<>();
 
         try {
-            List<Map<String, String>> booksData = bookmarkService.getAllBooksStructured();
+            List<Map<String, String>> allBooksData = bookmarkService.getAllBooksStructured();
+            int totalCount = allBooksData.size();
+            int totalPages = (int) Math.ceil((double) totalCount / size);
+
+            // Validate page number
+            if (page < 0) page = 0;
+            if (page >= totalPages && totalPages > 0) page = totalPages - 1;
+
+            // Calculate pagination bounds
+            int fromIndex = page * size;
+            int toIndex = Math.min(fromIndex + size, totalCount);
+
+            List<Map<String, String>> pageData = new ArrayList<>();
+            if (fromIndex < totalCount) {
+                pageData = allBooksData.subList(fromIndex, toIndex);
+            }
 
             response.put("success", true);
-            response.put("count", booksData.size());
-            response.put("books", booksData);
+            response.put("totalCount", totalCount);
+            response.put("totalPages", totalPages);
+            response.put("currentPage", page);
+            response.put("pageSize", size);
+            response.put("count", pageData.size());
+            response.put("books", pageData);
             response.put("timestamp", System.currentTimeMillis());
 
         } catch (Exception e) {
@@ -85,7 +104,10 @@ public class MiniAppController {
     }
 
     @GetMapping("/bookmarks")
-    public Map<String, Object> getUserBookmarks(Long userId) {
+    public Map<String, Object> getUserBookmarks(
+            Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         Map<String, Object> response = new HashMap<>();
 
         try {
@@ -96,19 +118,110 @@ public class MiniAppController {
                 return response;
             }
 
-            List<BookmarkService.BookmarkInfo> bookmarks = bookmarkService.getUserBookmarks(userId);
-            List<Map<String, String>> bookmarkData = new ArrayList<>();
-            for (BookmarkService.BookmarkInfo bookmark : bookmarks) {
-                Map<String, String> bookmarkMap = new HashMap<>();
-                bookmarkMap.put("bookName", bookmark.getBookName());
-                bookmarkMap.put("chapterTitle", bookmark.getChapterTitle());
-                bookmarkMap.put("url", bookmark.getUrl());
-                bookmarkData.add(bookmarkMap);
+            List<BookmarkService.BookmarkInfo> allBookmarks = bookmarkService.getUserBookmarks(userId);
+
+            // Group bookmarks by book name
+            Map<String, List<BookmarkService.BookmarkInfo>> bookGroups = new LinkedHashMap<>();
+            for (BookmarkService.BookmarkInfo bookmark : allBookmarks) {
+                String bookName = bookmark.getBookName();
+                if (bookName == null) bookName = "未知书籍";
+                bookGroups.computeIfAbsent(bookName, k -> new ArrayList<>()).add(bookmark);
+            }
+
+            // Calculate total bookmarks count
+            int totalBookmarks = allBookmarks.size();
+            // For pagination, we need to count by groups to keep groups intact
+            List<Map<String, Object>> allGroups = new ArrayList<>();
+            for (Map.Entry<String, List<BookmarkService.BookmarkInfo>> entry : bookGroups.entrySet()) {
+                Map<String, Object> group = new HashMap<>();
+                group.put("bookName", entry.getKey());
+
+                List<Map<String, String>> groupBookmarks = new ArrayList<>();
+                for (BookmarkService.BookmarkInfo bookmark : entry.getValue()) {
+                    Map<String, String> bookmarkMap = new HashMap<>();
+                    bookmarkMap.put("bookName", bookmark.getBookName());
+                    bookmarkMap.put("chapterTitle", bookmark.getChapterTitle());
+                    bookmarkMap.put("url", bookmark.getUrl());
+                    groupBookmarks.add(bookmarkMap);
+                }
+                group.put("bookmarks", groupBookmarks);
+                group.put("count", groupBookmarks.size());
+                allGroups.add(group);
+            }
+
+            // Calculate pagination for groups (keeping groups intact)
+            int currentBookmarkCount = 0;
+            int currentPage = 0;
+            int startGroupIndex = 0;
+            int endGroupIndex = 0;
+            Map<Integer, Map<String, Integer>> pageMap = new HashMap<>(); // page -> {startGroup, endGroup}
+
+            for (int i = 0; i < allGroups.size(); i++) {
+                Map<String, Object> group = allGroups.get(i);
+                int groupBookmarkCount = (int) group.get("count");
+
+                // If adding this group would exceed page size and we already have some bookmarks on this page
+                if (currentBookmarkCount + groupBookmarkCount > size && currentBookmarkCount > 0) {
+                    // End current page
+                    pageMap.put(currentPage, Map.of(
+                        "startGroup", startGroupIndex,
+                        "endGroup", i - 1
+                    ));
+                    // Start new page
+                    currentPage++;
+                    currentBookmarkCount = 0;
+                    startGroupIndex = i;
+                }
+
+                currentBookmarkCount += groupBookmarkCount;
+                // If exactly filled the page
+                if (currentBookmarkCount == size) {
+                    pageMap.put(currentPage, Map.of(
+                        "startGroup", startGroupIndex,
+                        "endGroup", i
+                    ));
+                    currentPage++;
+                    currentBookmarkCount = 0;
+                    startGroupIndex = i + 1;
+                }
+            }
+
+            // Handle last page
+            if (currentBookmarkCount > 0 || startGroupIndex < allGroups.size()) {
+                if (startGroupIndex < allGroups.size()) {
+                    pageMap.put(currentPage, Map.of(
+                        "startGroup", startGroupIndex,
+                        "endGroup", allGroups.size() - 1
+                    ));
+                }
+            }
+
+            int totalPages = pageMap.size();
+
+            // Validate page number
+            if (page < 0) page = 0;
+            if (page >= totalPages && totalPages > 0) page = totalPages - 1;
+
+            // Get groups for current page
+            List<Map<String, Object>> pageGroups = new ArrayList<>();
+            int pageBookmarkCount = 0;
+            if (totalPages > 0) {
+                Map<String, Integer> pageRange = pageMap.get(page);
+                int startIdx = pageRange.get("startGroup");
+                int endIdx = pageRange.get("endGroup");
+                for (int i = startIdx; i <= endIdx; i++) {
+                    pageGroups.add(allGroups.get(i));
+                    pageBookmarkCount += (int) allGroups.get(i).get("count");
+                }
             }
 
             response.put("success", true);
-            response.put("count", bookmarkData.size());
-            response.put("bookmarks", bookmarkData);
+            response.put("totalBookmarks", totalBookmarks);
+            response.put("totalPages", totalPages);
+            response.put("currentPage", page);
+            response.put("pageSize", size);
+            response.put("pageBookmarkCount", pageBookmarkCount);
+            response.put("groups", pageGroups);
             response.put("timestamp", System.currentTimeMillis());
 
         } catch (Exception e) {

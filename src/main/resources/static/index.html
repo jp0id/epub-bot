@@ -243,6 +243,109 @@
             border-top: 1px solid #e2e8f0;
         }
 
+        .pagination {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .pagination-info {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pagination-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            background: #e2e8f0;
+            color: #4a5568;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: #cbd5e0;
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-numbers {
+            display: flex;
+            gap: 5px;
+        }
+
+        .page-number {
+            min-width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: #f7fafc;
+            color: #4a5568;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .page-number:hover {
+            background: #e2e8f0;
+        }
+
+        .page-number.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .bookmark-group-header {
+            margin: 25px 0 15px 0;
+            padding: 15px 20px;
+            background: linear-gradient(90deg, #f7fafc, #edf2f7);
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .group-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .group-book-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .group-count {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            font-weight: normal;
+            margin-left: 10px;
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 30px 20px;
@@ -262,6 +365,11 @@
 
             .btn {
                 width: 100%;
+                justify-content: center;
+            }
+
+            .pagination-controls {
+                flex-wrap: wrap;
                 justify-content: center;
             }
         }
@@ -304,6 +412,15 @@
             <div id="booksList" class="books-list">
                 <!-- Books will be loaded here -->
             </div>
+
+            <div id="booksPagination" class="pagination" style="display: none;">
+                <div class="pagination-info" id="booksPaginationInfo"></div>
+                <div class="pagination-controls">
+                    <button id="booksPrevPage" class="pagination-btn" disabled>上一页</button>
+                    <div id="booksPageNumbers" class="page-numbers"></div>
+                    <button id="booksNextPage" class="pagination-btn" disabled>下一页</button>
+                </div>
+            </div>
         </div>
 
         <div id="bookmarksSection" class="books-section">
@@ -321,6 +438,15 @@
 
             <div id="bookmarksList" class="books-list">
                 <!-- Bookmarks will be loaded here -->
+            </div>
+
+            <div id="bookmarksPagination" class="pagination" style="display: none;">
+                <div class="pagination-info" id="bookmarksPaginationInfo"></div>
+                <div class="pagination-controls">
+                    <button id="bookmarksPrevPage" class="pagination-btn" disabled>上一页</button>
+                    <div id="bookmarksPageNumbers" class="page-numbers"></div>
+                    <button id="bookmarksNextPage" class="pagination-btn" disabled>下一页</button>
+                </div>
             </div>
         </div>
 
@@ -397,6 +523,20 @@
         const bookmarksCount = document.getElementById('bookmarksCount');
         const bookmarksLoading = document.getElementById('bookmarksLoading');
         const bookmarksErrorContainer = document.getElementById('bookmarksErrorContainer');
+        const booksPagination = document.getElementById('booksPagination');
+        const booksPaginationInfo = document.getElementById('booksPaginationInfo');
+        const booksPrevPage = document.getElementById('booksPrevPage');
+        const booksNextPage = document.getElementById('booksNextPage');
+        const booksPageNumbers = document.getElementById('booksPageNumbers');
+        const bookmarksPagination = document.getElementById('bookmarksPagination');
+        const bookmarksPaginationInfo = document.getElementById('bookmarksPaginationInfo');
+        const bookmarksPrevPage = document.getElementById('bookmarksPrevPage');
+        const bookmarksNextPage = document.getElementById('bookmarksNextPage');
+        const bookmarksPageNumbers = document.getElementById('bookmarksPageNumbers');
+
+        // Pagination state
+        let currentBooksPage = 0;
+        let currentBookmarksPage = 0;
 
         // Show error message
         function showError(message) {
@@ -422,15 +562,18 @@
             bookmarksErrorContainer.style.display = 'none';
         }
 
-        // Load all books from API
-        async function loadAllBooks() {
+        // Load all books from API with pagination
+        async function loadAllBooks(page = currentBooksPage) {
+            // Update current page
+            currentBooksPage = page;
+
             // Show loading and hide previous error
             loading.style.display = 'block';
             hideError();
             booksList.innerHTML = '';
 
             try {
-                const response = await fetch(`${API_BASE}/books`);
+                const response = await fetch(`${API_BASE}/books?page=${page}&size=10`);
                 const data = await response.json();
 
                 if (!response.ok || !data.success) {
@@ -442,9 +585,11 @@
 
                 // Show books section
                 booksSection.classList.add('visible');
+                bookmarksSection.classList.remove('visible');
 
-                // Update count
-                booksCount.textContent = `${data.count} book${data.count !== 1 ? 's' : ''}`;
+                // Update count - show total count and current page info
+                booksCount.textContent = `${data.totalCount} 本书`;
+                booksPaginationInfo.textContent = `第 ${page + 1} / ${data.totalPages} 页，共 ${data.totalCount} 本书`;
 
                 // Render books
                 if (data.books && data.books.length > 0) {
@@ -460,12 +605,95 @@
                         booksList.appendChild(bookElement);
                     });
                 } else {
-                    booksList.innerHTML = '<div class="loading">No books found. Upload some EPUB files to get started!</div>';
+                    booksList.innerHTML = '<div class="loading">暂无书籍。上传EPUB文件即可开始阅读。</div>';
                 }
 
+                // Update pagination controls
+                updateBooksPagination(data.totalPages, page);
+
             } catch (error) {
-                showError(`Error: ${error.message}`);
+                showError(`错误: ${error.message}`);
             }
+        }
+
+        // Update books pagination controls
+        function updateBooksPagination(totalPages, currentPage) {
+            if (totalPages <= 1) {
+                booksPagination.style.display = 'none';
+                return;
+            }
+
+            booksPagination.style.display = 'flex';
+
+            // Update prev/next buttons
+            booksPrevPage.disabled = currentPage <= 0;
+            booksNextPage.disabled = currentPage >= totalPages - 1;
+
+            // Update page numbers
+            booksPageNumbers.innerHTML = '';
+            const maxVisiblePages = 5;
+            let startPage = Math.max(0, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages - 1, startPage + maxVisiblePages - 1);
+
+            // Adjust start page if we're near the end
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(0, endPage - maxVisiblePages + 1);
+            }
+
+            // First page
+            if (startPage > 0) {
+                const firstPageBtn = document.createElement('span');
+                firstPageBtn.className = 'page-number';
+                firstPageBtn.textContent = '1';
+                firstPageBtn.onclick = () => loadAllBooks(0);
+                booksPageNumbers.appendChild(firstPageBtn);
+                if (startPage > 1) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    ellipsis.style.padding = '0 8px';
+                    booksPageNumbers.appendChild(ellipsis);
+                }
+            }
+
+            // Page numbers
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('span');
+                pageBtn.className = 'page-number';
+                if (i === currentPage) {
+                    pageBtn.classList.add('active');
+                }
+                pageBtn.textContent = i + 1;
+                pageBtn.onclick = () => loadAllBooks(i);
+                booksPageNumbers.appendChild(pageBtn);
+            }
+
+            // Last page
+            if (endPage < totalPages - 1) {
+                if (endPage < totalPages - 2) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    ellipsis.style.padding = '0 8px';
+                    booksPageNumbers.appendChild(ellipsis);
+                }
+                const lastPageBtn = document.createElement('span');
+                lastPageBtn.className = 'page-number';
+                lastPageBtn.textContent = totalPages;
+                lastPageBtn.onclick = () => loadAllBooks(totalPages - 1);
+                booksPageNumbers.appendChild(lastPageBtn);
+            }
+
+            // Setup prev/next button handlers
+            booksPrevPage.onclick = () => {
+                if (currentPage > 0) {
+                    loadAllBooks(currentPage - 1);
+                }
+            };
+
+            booksNextPage.onclick = () => {
+                if (currentPage < totalPages - 1) {
+                    loadAllBooks(currentPage + 1);
+                }
+            };
         }
 
         // Show app info
@@ -483,8 +711,11 @@
             }
         }
 
-        // Load user bookmarks
-        async function loadBookmarks() {
+        // Load user bookmarks with pagination and grouping
+        async function loadBookmarks(page = currentBookmarksPage) {
+            // Update current page
+            currentBookmarksPage = page;
+
             // Get user ID from Telegram Web App
             const userId = getUserId();
             if (!userId) {
@@ -498,7 +729,7 @@
             bookmarksList.innerHTML = '';
 
             try {
-                const response = await fetch(`${API_BASE}/bookmarks?userId=${userId}`);
+                const response = await fetch(`${API_BASE}/bookmarks?userId=${userId}&page=${page}&size=10`);
                 const data = await response.json();
 
                 if (!response.ok || !data.success) {
@@ -513,29 +744,129 @@
                 booksSection.classList.remove('visible');
 
                 // Update count
-                bookmarksCount.textContent = `${data.count} 书签`;
+                bookmarksCount.textContent = `${data.totalBookmarks} 书签`;
+                bookmarksPaginationInfo.textContent = `第 ${page + 1} / ${data.totalPages} 页，共 ${data.totalBookmarks} 个书签`;
 
-                // Render bookmarks
-                if (data.bookmarks && data.bookmarks.length > 0) {
-                    data.bookmarks.forEach(bookmark => {
-                        const bookmarkElement = document.createElement('div');
-                        bookmarkElement.className = 'book-card';
-                        bookmarkElement.innerHTML = `
-                            <div class="book-name">${escapeHtml(bookmark.bookName)}</div>
-                            <div class="book-url">${escapeHtml(bookmark.chapterTitle)}</div>
-                            <a href="${escapeHtml(bookmark.url)}" class="book-link" target="_blank">
-                                打开书签
-                            </a>
+                // Render bookmarks by groups
+                if (data.groups && data.groups.length > 0) {
+                    data.groups.forEach(group => {
+                        // Group header
+                        const groupHeader = document.createElement('div');
+                        groupHeader.className = 'bookmark-group-header';
+                        groupHeader.innerHTML = `
+                            <div class="group-title">
+                                <span class="group-book-name">${escapeHtml(group.bookName)}</span>
+                                <span class="group-count">(${group.count} 个书签)</span>
+                            </div>
                         `;
-                        bookmarksList.appendChild(bookmarkElement);
+                        bookmarksList.appendChild(groupHeader);
+
+                        // Group bookmarks
+                        if (group.bookmarks && group.bookmarks.length > 0) {
+                            group.bookmarks.forEach(bookmark => {
+                                const bookmarkElement = document.createElement('div');
+                                bookmarkElement.className = 'book-card';
+                                bookmarkElement.innerHTML = `
+                                    <div class="book-name">${escapeHtml(bookmark.bookName)}</div>
+                                    <div class="book-url">${escapeHtml(bookmark.chapterTitle)}</div>
+                                    <a href="${escapeHtml(bookmark.url)}" class="book-link" target="_blank">
+                                        打开书签
+                                    </a>
+                                `;
+                                bookmarksList.appendChild(bookmarkElement);
+                            });
+                        }
                     });
                 } else {
                     bookmarksList.innerHTML = '<div class="loading">暂无书签。阅读时点击"保存书签"即可添加书签。</div>';
                 }
 
+                // Update pagination controls
+                updateBookmarksPagination(data.totalPages, page);
+
             } catch (error) {
                 showBookmarksError(`错误: ${error.message}`);
             }
+        }
+
+        // Update bookmarks pagination controls
+        function updateBookmarksPagination(totalPages, currentPage) {
+            if (totalPages <= 1) {
+                bookmarksPagination.style.display = 'none';
+                return;
+            }
+
+            bookmarksPagination.style.display = 'flex';
+
+            // Update prev/next buttons
+            bookmarksPrevPage.disabled = currentPage <= 0;
+            bookmarksNextPage.disabled = currentPage >= totalPages - 1;
+
+            // Update page numbers
+            bookmarksPageNumbers.innerHTML = '';
+            const maxVisiblePages = 5;
+            let startPage = Math.max(0, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages - 1, startPage + maxVisiblePages - 1);
+
+            // Adjust start page if we're near the end
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(0, endPage - maxVisiblePages + 1);
+            }
+
+            // First page
+            if (startPage > 0) {
+                const firstPageBtn = document.createElement('span');
+                firstPageBtn.className = 'page-number';
+                firstPageBtn.textContent = '1';
+                firstPageBtn.onclick = () => loadBookmarks(0);
+                bookmarksPageNumbers.appendChild(firstPageBtn);
+                if (startPage > 1) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    ellipsis.style.padding = '0 8px';
+                    bookmarksPageNumbers.appendChild(ellipsis);
+                }
+            }
+
+            // Page numbers
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('span');
+                pageBtn.className = 'page-number';
+                if (i === currentPage) {
+                    pageBtn.classList.add('active');
+                }
+                pageBtn.textContent = i + 1;
+                pageBtn.onclick = () => loadBookmarks(i);
+                bookmarksPageNumbers.appendChild(pageBtn);
+            }
+
+            // Last page
+            if (endPage < totalPages - 1) {
+                if (endPage < totalPages - 2) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    ellipsis.style.padding = '0 8px';
+                    bookmarksPageNumbers.appendChild(ellipsis);
+                }
+                const lastPageBtn = document.createElement('span');
+                lastPageBtn.className = 'page-number';
+                lastPageBtn.textContent = totalPages;
+                lastPageBtn.onclick = () => loadBookmarks(totalPages - 1);
+                bookmarksPageNumbers.appendChild(lastPageBtn);
+            }
+
+            // Setup prev/next button handlers
+            bookmarksPrevPage.onclick = () => {
+                if (currentPage > 0) {
+                    loadBookmarks(currentPage - 1);
+                }
+            };
+
+            bookmarksNextPage.onclick = () => {
+                if (currentPage < totalPages - 1) {
+                    loadBookmarks(currentPage + 1);
+                }
+            };
         }
 
         // Clear user bookmarks

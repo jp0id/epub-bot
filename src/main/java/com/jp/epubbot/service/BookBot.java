@@ -120,12 +120,12 @@ public class BookBot extends TelegramLongPollingBot {
 
             if (info != null) {
                 bookmarkService.saveBookmarkForUser(chatId, info);
-                sendText(chatId, "✅ **书签已保存！**\n\n📖 书名: " + info.getBookName() + "\n📑 页码: " + info.getChapterTitle() + "\n\n输入 /bookmarks 查看所有书签。");
+                sendText(chatId, "✅ **书签已保存！**\n\n📖 书名: " + info.getBookName() + "\n📑 页码: " + info.getChapterTitle());
             } else {
                 sendText(chatId, "❌ 书签链接已失效或不存在。");
             }
         } else {
-            sendText(chatId, "欢迎！\n1. 发送 EPUB 文件开始阅读。\n2. 阅读时点击底部的“保存书签”。\n3. 输入 /bookmarks 查看书签。");
+            sendText(chatId, "欢迎！\n1. 发送 EPUB 文件开始阅读。\n2. 阅读时点击底部的“保存书签”。\n3. 可通过 mini app 查看书签。");
         }
     }
 
@@ -246,7 +246,7 @@ public class BookBot extends TelegramLongPollingBot {
 
         try {
             SetChatMenuButton menuButton = new SetChatMenuButton();
-            MenuButtonWebApp webAppButton = null;
+            MenuButtonWebApp webAppButton;
             try {
                 java.lang.reflect.Constructor<MenuButtonWebApp> constructor = MenuButtonWebApp.class.getDeclaredConstructor(String.class, WebAppInfo.class);
                 constructor.setAccessible(true);
