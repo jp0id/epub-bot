@@ -216,8 +216,12 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .telegram-badge {
@@ -379,550 +383,550 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>EPUB Bot Mini App</h1>
-        <div class="buttons-container">
-            <button class="btn btn-primary" onclick="loadAllBooks()">
-                📚 所有书籍
-            </button>
-            <button class="btn btn-primary" onclick="loadBookmarks()">
-                🔖 书签列表
-            </button>
-            <button class="btn btn-secondary" onclick="clearBookmarks()">
-                🗑️ 清空书签
-            </button>
-            <button class="btn btn-secondary" onclick="showTestInfo()">
-                ℹ️ App Info
-            </button>
+<div class="container">
+    <h1>EPUB Bot Mini App</h1>
+    <div class="buttons-container">
+        <button class="btn btn-primary" onclick="loadAllBooks()">
+            📚 所有书籍
+        </button>
+        <button class="btn btn-primary" onclick="loadBookmarks()">
+            🔖 我的书签
+        </button>
+        <button class="btn btn-secondary" onclick="clearBookmarks()">
+            🗑️ 清空书签
+        </button>
+        <button class="btn btn-secondary" onclick="showTestInfo()">
+            ℹ️ App Info
+        </button>
+    </div>
+
+    <div id="booksSection" class="books-section">
+        <div class="books-header">
+            <div class="books-title">书籍列表</div>
+            <div class="books-count" id="booksCount">0 books</div>
         </div>
 
-        <div id="booksSection" class="books-section">
-            <div class="books-header">
-                <div class="books-title">书籍列表</div>
-                <div class="books-count" id="booksCount">0 books</div>
-            </div>
-
-            <div id="loading" class="loading" style="display: none;">
-                <div class="loading-spinner"></div>
-                Loading books...
-            </div>
-
-            <div id="errorContainer" class="error" style="display: none;"></div>
-
-            <div id="booksList" class="books-list">
-                <!-- Books will be loaded here -->
-            </div>
-
-            <div id="booksPagination" class="pagination" style="display: none;">
-                <div class="pagination-info" id="booksPaginationInfo"></div>
-                <div class="pagination-controls">
-                    <button id="booksPrevPage" class="pagination-btn" disabled>上一页</button>
-                    <div id="booksPageNumbers" class="page-numbers"></div>
-                    <button id="booksNextPage" class="pagination-btn" disabled>下一页</button>
-                </div>
-            </div>
+        <div id="loading" class="loading" style="display: none;">
+            <div class="loading-spinner"></div>
+            Loading books...
         </div>
 
-        <div id="bookmarksSection" class="books-section">
-            <div class="books-header">
-                <div class="books-title">我的书签</div>
-                <div class="books-count" id="bookmarksCount">0 书签</div>
-            </div>
+        <div id="errorContainer" class="error" style="display: none;"></div>
 
-            <div id="bookmarksLoading" class="loading" style="display: none;">
-                <div class="loading-spinner"></div>
-                加载书签...
-            </div>
-
-            <div id="bookmarksErrorContainer" class="error" style="display: none;"></div>
-
-            <div id="bookmarksList" class="books-list">
-                <!-- Bookmarks will be loaded here -->
-            </div>
-
-            <div id="bookmarksPagination" class="pagination" style="display: none;">
-                <div class="pagination-info" id="bookmarksPaginationInfo"></div>
-                <div class="pagination-controls">
-                    <button id="bookmarksPrevPage" class="pagination-btn" disabled>上一页</button>
-                    <div id="bookmarksPageNumbers" class="page-numbers"></div>
-                    <button id="bookmarksNextPage" class="pagination-btn" disabled>下一页</button>
-                </div>
-            </div>
+        <div id="booksList" class="books-list">
+            <!-- Books will be loaded here -->
         </div>
 
-        <div class="footer">
-            <a href="https://t.me/pm_jp_bot" class="telegram-badge" target="_blank">
-                联系我
-            </a>
+        <div id="booksPagination" class="pagination" style="display: none;">
+            <div class="pagination-info" id="booksPaginationInfo"></div>
+            <div class="pagination-controls">
+                <button id="booksPrevPage" class="pagination-btn" disabled>上一页</button>
+                <div id="booksPageNumbers" class="page-numbers"></div>
+                <button id="booksNextPage" class="pagination-btn" disabled>下一页</button>
+            </div>
         </div>
     </div>
 
-    <script>
-        // Telegram Web App initialization
-        let tg = null;
+    <div id="bookmarksSection" class="books-section">
+        <div class="books-header">
+            <div class="books-title">我的书签</div>
+            <div class="books-count" id="bookmarksCount">0 书签</div>
+        </div>
+
+        <div id="bookmarksLoading" class="loading" style="display: none;">
+            <div class="loading-spinner"></div>
+            加载书签...
+        </div>
+
+        <div id="bookmarksErrorContainer" class="error" style="display: none;"></div>
+
+        <div id="bookmarksList" class="books-list">
+            <!-- Bookmarks will be loaded here -->
+        </div>
+
+        <div id="bookmarksPagination" class="pagination" style="display: none;">
+            <div class="pagination-info" id="bookmarksPaginationInfo"></div>
+            <div class="pagination-controls">
+                <button id="bookmarksPrevPage" class="pagination-btn" disabled>上一页</button>
+                <div id="bookmarksPageNumbers" class="page-numbers"></div>
+                <button id="bookmarksNextPage" class="pagination-btn" disabled>下一页</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <a href="https://t.me/pm_jp_bot" class="telegram-badge" target="_blank">
+            联系我
+        </a>
+    </div>
+</div>
+
+<script>
+    // Telegram Web App initialization
+    let tg = null;
+    try {
+        tg = window.Telegram?.WebApp;
+        if (tg) {
+            // Initialize Telegram Web App
+            tg.expand(); // Expand to full screen
+            tg.ready(); // Notify Telegram Web App is ready
+
+            // Apply Telegram theme colors
+            applyTelegramTheme(tg);
+
+            // Setup back button
+            if (tg.isVersionAtLeast('6.1')) {
+                tg.BackButton.show();
+                tg.onEvent('backButtonClicked', () => {
+                    tg.close();
+                });
+            }
+
+            // Log user info (if available)
+            const user = tg.initDataUnsafe?.user;
+            if (user) {
+                console.log('Telegram user:', user);
+            }
+        }
+    } catch (error) {
+        console.warn('Telegram Web App not available:', error);
+    }
+
+    // Apply Telegram theme to CSS variables
+    function applyTelegramTheme(tg) {
+        const root = document.documentElement;
+
+        // Set CSS variables from Telegram theme
+        root.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#667eea');
+        root.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#333');
+        root.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#718096');
+        root.style.setProperty('--tg-theme-link-color', tg.themeParams.link_color || '#667eea');
+        root.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#667eea');
+        root.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || 'white');
+        root.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || 'white');
+
+        // Adjust button colors based on theme
+        const primaryBtn = document.querySelector('.btn-primary');
+        if (primaryBtn && tg.themeParams.button_color) {
+            primaryBtn.style.background = tg.themeParams.button_color;
+            primaryBtn.style.color = tg.themeParams.button_text_color;
+        }
+    }
+
+    // API base URL
+    const API_BASE = window.location.origin + '/api/miniapp';
+
+    // DOM elements
+    const booksSection = document.getElementById('booksSection');
+    const booksList = document.getElementById('booksList');
+    const booksCount = document.getElementById('booksCount');
+    const loading = document.getElementById('loading');
+    const errorContainer = document.getElementById('errorContainer');
+    const bookmarksSection = document.getElementById('bookmarksSection');
+    const bookmarksList = document.getElementById('bookmarksList');
+    const bookmarksCount = document.getElementById('bookmarksCount');
+    const bookmarksLoading = document.getElementById('bookmarksLoading');
+    const bookmarksErrorContainer = document.getElementById('bookmarksErrorContainer');
+    const booksPagination = document.getElementById('booksPagination');
+    const booksPaginationInfo = document.getElementById('booksPaginationInfo');
+    const booksPrevPage = document.getElementById('booksPrevPage');
+    const booksNextPage = document.getElementById('booksNextPage');
+    const booksPageNumbers = document.getElementById('booksPageNumbers');
+    const bookmarksPagination = document.getElementById('bookmarksPagination');
+    const bookmarksPaginationInfo = document.getElementById('bookmarksPaginationInfo');
+    const bookmarksPrevPage = document.getElementById('bookmarksPrevPage');
+    const bookmarksNextPage = document.getElementById('bookmarksNextPage');
+    const bookmarksPageNumbers = document.getElementById('bookmarksPageNumbers');
+
+    // Pagination state
+    let currentBooksPage = 0;
+    let currentBookmarksPage = 0;
+
+    // Show error message
+    function showError(message) {
+        errorContainer.textContent = message;
+        errorContainer.style.display = 'block';
+        loading.style.display = 'none';
+    }
+
+    // Hide error message
+    function hideError() {
+        errorContainer.style.display = 'none';
+    }
+
+    // Show bookmarks error message
+    function showBookmarksError(message) {
+        bookmarksErrorContainer.textContent = message;
+        bookmarksErrorContainer.style.display = 'block';
+        bookmarksLoading.style.display = 'none';
+    }
+
+    // Hide bookmarks error message
+    function hideBookmarksError() {
+        bookmarksErrorContainer.style.display = 'none';
+    }
+
+    // Load all books from API with pagination
+    async function loadAllBooks(page = currentBooksPage) {
+        // Update current page
+        currentBooksPage = page;
+
+        // Show loading and hide previous error
+        loading.style.display = 'block';
+        hideError();
+        booksList.innerHTML = '';
+
         try {
-            tg = window.Telegram?.WebApp;
-            if (tg) {
-                // Initialize Telegram Web App
-                tg.expand(); // Expand to full screen
-                tg.ready(); // Notify Telegram Web App is ready
+            const response = await fetch(`${API_BASE}/books?page=${page}&size=10`);
+            const data = await response.json();
 
-                // Apply Telegram theme colors
-                applyTelegramTheme(tg);
-
-                // Setup back button
-                if (tg.isVersionAtLeast('6.1')) {
-                    tg.BackButton.show();
-                    tg.onEvent('backButtonClicked', () => {
-                        tg.close();
-                    });
-                }
-
-                // Log user info (if available)
-                const user = tg.initDataUnsafe?.user;
-                if (user) {
-                    console.log('Telegram user:', user);
-                }
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Failed to load books');
             }
-        } catch (error) {
-            console.warn('Telegram Web App not available:', error);
-        }
 
-        // Apply Telegram theme to CSS variables
-        function applyTelegramTheme(tg) {
-            const root = document.documentElement;
-
-            // Set CSS variables from Telegram theme
-            root.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#667eea');
-            root.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#333');
-            root.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#718096');
-            root.style.setProperty('--tg-theme-link-color', tg.themeParams.link_color || '#667eea');
-            root.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#667eea');
-            root.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || 'white');
-            root.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || 'white');
-
-            // Adjust button colors based on theme
-            const primaryBtn = document.querySelector('.btn-primary');
-            if (primaryBtn && tg.themeParams.button_color) {
-                primaryBtn.style.background = tg.themeParams.button_color;
-                primaryBtn.style.color = tg.themeParams.button_text_color;
-            }
-        }
-
-        // API base URL
-        const API_BASE = window.location.origin + '/api/miniapp';
-
-        // DOM elements
-        const booksSection = document.getElementById('booksSection');
-        const booksList = document.getElementById('booksList');
-        const booksCount = document.getElementById('booksCount');
-        const loading = document.getElementById('loading');
-        const errorContainer = document.getElementById('errorContainer');
-        const bookmarksSection = document.getElementById('bookmarksSection');
-        const bookmarksList = document.getElementById('bookmarksList');
-        const bookmarksCount = document.getElementById('bookmarksCount');
-        const bookmarksLoading = document.getElementById('bookmarksLoading');
-        const bookmarksErrorContainer = document.getElementById('bookmarksErrorContainer');
-        const booksPagination = document.getElementById('booksPagination');
-        const booksPaginationInfo = document.getElementById('booksPaginationInfo');
-        const booksPrevPage = document.getElementById('booksPrevPage');
-        const booksNextPage = document.getElementById('booksNextPage');
-        const booksPageNumbers = document.getElementById('booksPageNumbers');
-        const bookmarksPagination = document.getElementById('bookmarksPagination');
-        const bookmarksPaginationInfo = document.getElementById('bookmarksPaginationInfo');
-        const bookmarksPrevPage = document.getElementById('bookmarksPrevPage');
-        const bookmarksNextPage = document.getElementById('bookmarksNextPage');
-        const bookmarksPageNumbers = document.getElementById('bookmarksPageNumbers');
-
-        // Pagination state
-        let currentBooksPage = 0;
-        let currentBookmarksPage = 0;
-
-        // Show error message
-        function showError(message) {
-            errorContainer.textContent = message;
-            errorContainer.style.display = 'block';
+            // Hide loading
             loading.style.display = 'none';
-        }
 
-        // Hide error message
-        function hideError() {
-            errorContainer.style.display = 'none';
-        }
+            // Show books section
+            booksSection.classList.add('visible');
+            bookmarksSection.classList.remove('visible');
 
-        // Show bookmarks error message
-        function showBookmarksError(message) {
-            bookmarksErrorContainer.textContent = message;
-            bookmarksErrorContainer.style.display = 'block';
-            bookmarksLoading.style.display = 'none';
-        }
+            // Update count - show total count and current page info
+            booksCount.textContent = `${data.totalCount} 本书`;
+            booksPaginationInfo.textContent = `第 ${page + 1} / ${data.totalPages} 页，共 ${data.totalCount} 本书`;
 
-        // Hide bookmarks error message
-        function hideBookmarksError() {
-            bookmarksErrorContainer.style.display = 'none';
-        }
-
-        // Load all books from API with pagination
-        async function loadAllBooks(page = currentBooksPage) {
-            // Update current page
-            currentBooksPage = page;
-
-            // Show loading and hide previous error
-            loading.style.display = 'block';
-            hideError();
-            booksList.innerHTML = '';
-
-            try {
-                const response = await fetch(`${API_BASE}/books?page=${page}&size=10`);
-                const data = await response.json();
-
-                if (!response.ok || !data.success) {
-                    throw new Error(data.error || 'Failed to load books');
-                }
-
-                // Hide loading
-                loading.style.display = 'none';
-
-                // Show books section
-                booksSection.classList.add('visible');
-                bookmarksSection.classList.remove('visible');
-
-                // Update count - show total count and current page info
-                booksCount.textContent = `${data.totalCount} 本书`;
-                booksPaginationInfo.textContent = `第 ${page + 1} / ${data.totalPages} 页，共 ${data.totalCount} 本书`;
-
-                // Render books
-                if (data.books && data.books.length > 0) {
-                    data.books.forEach(book => {
-                        const bookElement = document.createElement('div');
-                        bookElement.className = 'book-card';
-                        bookElement.innerHTML = `
+            // Render books
+            if (data.books && data.books.length > 0) {
+                data.books.forEach(book => {
+                    const bookElement = document.createElement('div');
+                    bookElement.className = 'book-card';
+                    bookElement.innerHTML = `
                             <div class="book-name">${escapeHtml(book.name)}</div>
                             <a href="${escapeHtml(book.url)}" class="book-link" target="_blank">
                                 Open in Telegraph
                             </a>
                         `;
-                        booksList.appendChild(bookElement);
-                    });
-                } else {
-                    booksList.innerHTML = '<div class="loading">暂无书籍。上传EPUB文件即可开始阅读。</div>';
-                }
+                    booksList.appendChild(bookElement);
+                });
+            } else {
+                booksList.innerHTML = '<div class="loading">暂无书籍。上传EPUB文件即可开始阅读。</div>';
+            }
 
-                // Update pagination controls
-                updateBooksPagination(data.totalPages, page);
+            // Update pagination controls
+            updateBooksPagination(data.totalPages, page);
 
-            } catch (error) {
-                showError(`错误: ${error.message}`);
+        } catch (error) {
+            showError(`错误: ${error.message}`);
+        }
+    }
+
+    // Update books pagination controls
+    function updateBooksPagination(totalPages, currentPage) {
+        if (totalPages <= 1) {
+            booksPagination.style.display = 'none';
+            return;
+        }
+
+        booksPagination.style.display = 'flex';
+
+        // Update prev/next buttons
+        booksPrevPage.disabled = currentPage <= 0;
+        booksNextPage.disabled = currentPage >= totalPages - 1;
+
+        // Update page numbers
+        booksPageNumbers.innerHTML = '';
+        const maxVisiblePages = 5;
+        let startPage = Math.max(0, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages - 1, startPage + maxVisiblePages - 1);
+
+        // Adjust start page if we're near the end
+        if (endPage - startPage + 1 < maxVisiblePages) {
+            startPage = Math.max(0, endPage - maxVisiblePages + 1);
+        }
+
+        // First page
+        if (startPage > 0) {
+            const firstPageBtn = document.createElement('span');
+            firstPageBtn.className = 'page-number';
+            firstPageBtn.textContent = '1';
+            firstPageBtn.onclick = () => loadAllBooks(0);
+            booksPageNumbers.appendChild(firstPageBtn);
+            if (startPage > 1) {
+                const ellipsis = document.createElement('span');
+                ellipsis.textContent = '...';
+                ellipsis.style.padding = '0 8px';
+                booksPageNumbers.appendChild(ellipsis);
             }
         }
 
-        // Update books pagination controls
-        function updateBooksPagination(totalPages, currentPage) {
-            if (totalPages <= 1) {
-                booksPagination.style.display = 'none';
-                return;
+        // Page numbers
+        for (let i = startPage; i <= endPage; i++) {
+            const pageBtn = document.createElement('span');
+            pageBtn.className = 'page-number';
+            if (i === currentPage) {
+                pageBtn.classList.add('active');
             }
-
-            booksPagination.style.display = 'flex';
-
-            // Update prev/next buttons
-            booksPrevPage.disabled = currentPage <= 0;
-            booksNextPage.disabled = currentPage >= totalPages - 1;
-
-            // Update page numbers
-            booksPageNumbers.innerHTML = '';
-            const maxVisiblePages = 5;
-            let startPage = Math.max(0, currentPage - Math.floor(maxVisiblePages / 2));
-            let endPage = Math.min(totalPages - 1, startPage + maxVisiblePages - 1);
-
-            // Adjust start page if we're near the end
-            if (endPage - startPage + 1 < maxVisiblePages) {
-                startPage = Math.max(0, endPage - maxVisiblePages + 1);
-            }
-
-            // First page
-            if (startPage > 0) {
-                const firstPageBtn = document.createElement('span');
-                firstPageBtn.className = 'page-number';
-                firstPageBtn.textContent = '1';
-                firstPageBtn.onclick = () => loadAllBooks(0);
-                booksPageNumbers.appendChild(firstPageBtn);
-                if (startPage > 1) {
-                    const ellipsis = document.createElement('span');
-                    ellipsis.textContent = '...';
-                    ellipsis.style.padding = '0 8px';
-                    booksPageNumbers.appendChild(ellipsis);
-                }
-            }
-
-            // Page numbers
-            for (let i = startPage; i <= endPage; i++) {
-                const pageBtn = document.createElement('span');
-                pageBtn.className = 'page-number';
-                if (i === currentPage) {
-                    pageBtn.classList.add('active');
-                }
-                pageBtn.textContent = i + 1;
-                pageBtn.onclick = () => loadAllBooks(i);
-                booksPageNumbers.appendChild(pageBtn);
-            }
-
-            // Last page
-            if (endPage < totalPages - 1) {
-                if (endPage < totalPages - 2) {
-                    const ellipsis = document.createElement('span');
-                    ellipsis.textContent = '...';
-                    ellipsis.style.padding = '0 8px';
-                    booksPageNumbers.appendChild(ellipsis);
-                }
-                const lastPageBtn = document.createElement('span');
-                lastPageBtn.className = 'page-number';
-                lastPageBtn.textContent = totalPages;
-                lastPageBtn.onclick = () => loadAllBooks(totalPages - 1);
-                booksPageNumbers.appendChild(lastPageBtn);
-            }
-
-            // Setup prev/next button handlers
-            booksPrevPage.onclick = () => {
-                if (currentPage > 0) {
-                    loadAllBooks(currentPage - 1);
-                }
-            };
-
-            booksNextPage.onclick = () => {
-                if (currentPage < totalPages - 1) {
-                    loadAllBooks(currentPage + 1);
-                }
-            };
+            pageBtn.textContent = i + 1;
+            pageBtn.onclick = () => loadAllBooks(i);
+            booksPageNumbers.appendChild(pageBtn);
         }
 
-        // Show app info
-        async function showTestInfo() {
-            hideError();
+        // Last page
+        if (endPage < totalPages - 1) {
+            if (endPage < totalPages - 2) {
+                const ellipsis = document.createElement('span');
+                ellipsis.textContent = '...';
+                ellipsis.style.padding = '0 8px';
+                booksPageNumbers.appendChild(ellipsis);
+            }
+            const lastPageBtn = document.createElement('span');
+            lastPageBtn.className = 'page-number';
+            lastPageBtn.textContent = totalPages;
+            lastPageBtn.onclick = () => loadAllBooks(totalPages - 1);
+            booksPageNumbers.appendChild(lastPageBtn);
+        }
+
+        // Setup prev/next button handlers
+        booksPrevPage.onclick = () => {
+            if (currentPage > 0) {
+                loadAllBooks(currentPage - 1);
+            }
+        };
+
+        booksNextPage.onclick = () => {
+            if (currentPage < totalPages - 1) {
+                loadAllBooks(currentPage + 1);
+            }
+        };
+    }
+
+    // Show app info
+    async function showTestInfo() {
+        hideError();
+        booksSection.classList.remove('visible');
+
+        try {
+            const response = await fetch(`${API_BASE}/info`);
+            const data = await response.json();
+
+            alert(`App Info:\n\nName: ${data.name}\nVersion: ${data.version}\nDescription: ${data.description}`);
+        } catch (error) {
+            showError(`Error loading app info: ${error.message}`);
+        }
+    }
+
+    // Load user bookmarks with pagination and grouping
+    async function loadBookmarks(page = currentBookmarksPage) {
+        // Update current page
+        currentBookmarksPage = page;
+
+        // Get user ID from Telegram Web App
+        const userId = getUserId();
+        if (!userId) {
+            showBookmarksError('无法获取用户信息，请确保在Telegram中打开此页面。');
+            return;
+        }
+
+        // Show loading and hide previous error
+        bookmarksLoading.style.display = 'block';
+        hideBookmarksError();
+        bookmarksList.innerHTML = '';
+
+        try {
+            const response = await fetch(`${API_BASE}/bookmarks?userId=${userId}&page=${page}&size=10`);
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Failed to load bookmarks');
+            }
+
+            // Hide loading
+            bookmarksLoading.style.display = 'none';
+
+            // Show bookmarks section
+            bookmarksSection.classList.add('visible');
             booksSection.classList.remove('visible');
 
-            try {
-                const response = await fetch(`${API_BASE}/info`);
-                const data = await response.json();
+            // Update count
+            bookmarksCount.textContent = `${data.totalBookmarks} 书签`;
+            bookmarksPaginationInfo.textContent = `第 ${page + 1} / ${data.totalPages} 页，共 ${data.totalBookmarks} 个书签`;
 
-                alert(`App Info:\n\nName: ${data.name}\nVersion: ${data.version}\nDescription: ${data.description}`);
-            } catch (error) {
-                showError(`Error loading app info: ${error.message}`);
-            }
-        }
-
-        // Load user bookmarks with pagination and grouping
-        async function loadBookmarks(page = currentBookmarksPage) {
-            // Update current page
-            currentBookmarksPage = page;
-
-            // Get user ID from Telegram Web App
-            const userId = getUserId();
-            if (!userId) {
-                showBookmarksError('无法获取用户信息，请确保在Telegram中打开此页面。');
-                return;
-            }
-
-            // Show loading and hide previous error
-            bookmarksLoading.style.display = 'block';
-            hideBookmarksError();
-            bookmarksList.innerHTML = '';
-
-            try {
-                const response = await fetch(`${API_BASE}/bookmarks?userId=${userId}&page=${page}&size=10`);
-                const data = await response.json();
-
-                if (!response.ok || !data.success) {
-                    throw new Error(data.error || 'Failed to load bookmarks');
-                }
-
-                // Hide loading
-                bookmarksLoading.style.display = 'none';
-
-                // Show bookmarks section
-                bookmarksSection.classList.add('visible');
-                booksSection.classList.remove('visible');
-
-                // Update count
-                bookmarksCount.textContent = `${data.totalBookmarks} 书签`;
-                bookmarksPaginationInfo.textContent = `第 ${page + 1} / ${data.totalPages} 页，共 ${data.totalBookmarks} 个书签`;
-
-                // Render bookmarks by groups
-                if (data.groups && data.groups.length > 0) {
-                    data.groups.forEach(group => {
-                        // Group header
-                        const groupHeader = document.createElement('div');
-                        groupHeader.className = 'bookmark-group-header';
-                        groupHeader.innerHTML = `
+            // Render bookmarks by groups
+            if (data.groups && data.groups.length > 0) {
+                data.groups.forEach(group => {
+                    // Group header
+                    const groupHeader = document.createElement('div');
+                    groupHeader.className = 'bookmark-group-header';
+                    groupHeader.innerHTML = `
                             <div class="group-title">
                                 <span class="group-book-name">${escapeHtml(group.bookName)}</span>
                                 <span class="group-count">(${group.count} 个书签)</span>
                             </div>
                         `;
-                        bookmarksList.appendChild(groupHeader);
+                    bookmarksList.appendChild(groupHeader);
 
-                        // Group bookmarks
-                        if (group.bookmarks && group.bookmarks.length > 0) {
-                            group.bookmarks.forEach(bookmark => {
-                                const bookmarkElement = document.createElement('div');
-                                bookmarkElement.className = 'book-card';
-                                bookmarkElement.innerHTML = `
+                    // Group bookmarks
+                    if (group.bookmarks && group.bookmarks.length > 0) {
+                        group.bookmarks.forEach(bookmark => {
+                            const bookmarkElement = document.createElement('div');
+                            bookmarkElement.className = 'book-card';
+                            bookmarkElement.innerHTML = `
                                     <div class="book-name">${escapeHtml(bookmark.bookName)}</div>
                                     <div class="book-url">${escapeHtml(bookmark.chapterTitle)}</div>
                                     <a href="${escapeHtml(bookmark.url)}" class="book-link" target="_blank">
                                         打开书签
                                     </a>
                                 `;
-                                bookmarksList.appendChild(bookmarkElement);
-                            });
-                        }
-                    });
-                } else {
-                    bookmarksList.innerHTML = '<div class="loading">暂无书签。阅读时点击"保存书签"即可添加书签。</div>';
-                }
+                            bookmarksList.appendChild(bookmarkElement);
+                        });
+                    }
+                });
+            } else {
+                bookmarksList.innerHTML = '<div class="loading">暂无书签。阅读时点击"保存书签"即可添加书签。</div>';
+            }
 
-                // Update pagination controls
-                updateBookmarksPagination(data.totalPages, page);
+            // Update pagination controls
+            updateBookmarksPagination(data.totalPages, page);
 
-            } catch (error) {
-                showBookmarksError(`错误: ${error.message}`);
+        } catch (error) {
+            showBookmarksError(`错误: ${error.message}`);
+        }
+    }
+
+    // Update bookmarks pagination controls
+    function updateBookmarksPagination(totalPages, currentPage) {
+        if (totalPages <= 1) {
+            bookmarksPagination.style.display = 'none';
+            return;
+        }
+
+        bookmarksPagination.style.display = 'flex';
+
+        // Update prev/next buttons
+        bookmarksPrevPage.disabled = currentPage <= 0;
+        bookmarksNextPage.disabled = currentPage >= totalPages - 1;
+
+        // Update page numbers
+        bookmarksPageNumbers.innerHTML = '';
+        const maxVisiblePages = 5;
+        let startPage = Math.max(0, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages - 1, startPage + maxVisiblePages - 1);
+
+        // Adjust start page if we're near the end
+        if (endPage - startPage + 1 < maxVisiblePages) {
+            startPage = Math.max(0, endPage - maxVisiblePages + 1);
+        }
+
+        // First page
+        if (startPage > 0) {
+            const firstPageBtn = document.createElement('span');
+            firstPageBtn.className = 'page-number';
+            firstPageBtn.textContent = '1';
+            firstPageBtn.onclick = () => loadBookmarks(0);
+            bookmarksPageNumbers.appendChild(firstPageBtn);
+            if (startPage > 1) {
+                const ellipsis = document.createElement('span');
+                ellipsis.textContent = '...';
+                ellipsis.style.padding = '0 8px';
+                bookmarksPageNumbers.appendChild(ellipsis);
             }
         }
 
-        // Update bookmarks pagination controls
-        function updateBookmarksPagination(totalPages, currentPage) {
-            if (totalPages <= 1) {
-                bookmarksPagination.style.display = 'none';
-                return;
+        // Page numbers
+        for (let i = startPage; i <= endPage; i++) {
+            const pageBtn = document.createElement('span');
+            pageBtn.className = 'page-number';
+            if (i === currentPage) {
+                pageBtn.classList.add('active');
             }
-
-            bookmarksPagination.style.display = 'flex';
-
-            // Update prev/next buttons
-            bookmarksPrevPage.disabled = currentPage <= 0;
-            bookmarksNextPage.disabled = currentPage >= totalPages - 1;
-
-            // Update page numbers
-            bookmarksPageNumbers.innerHTML = '';
-            const maxVisiblePages = 5;
-            let startPage = Math.max(0, currentPage - Math.floor(maxVisiblePages / 2));
-            let endPage = Math.min(totalPages - 1, startPage + maxVisiblePages - 1);
-
-            // Adjust start page if we're near the end
-            if (endPage - startPage + 1 < maxVisiblePages) {
-                startPage = Math.max(0, endPage - maxVisiblePages + 1);
-            }
-
-            // First page
-            if (startPage > 0) {
-                const firstPageBtn = document.createElement('span');
-                firstPageBtn.className = 'page-number';
-                firstPageBtn.textContent = '1';
-                firstPageBtn.onclick = () => loadBookmarks(0);
-                bookmarksPageNumbers.appendChild(firstPageBtn);
-                if (startPage > 1) {
-                    const ellipsis = document.createElement('span');
-                    ellipsis.textContent = '...';
-                    ellipsis.style.padding = '0 8px';
-                    bookmarksPageNumbers.appendChild(ellipsis);
-                }
-            }
-
-            // Page numbers
-            for (let i = startPage; i <= endPage; i++) {
-                const pageBtn = document.createElement('span');
-                pageBtn.className = 'page-number';
-                if (i === currentPage) {
-                    pageBtn.classList.add('active');
-                }
-                pageBtn.textContent = i + 1;
-                pageBtn.onclick = () => loadBookmarks(i);
-                bookmarksPageNumbers.appendChild(pageBtn);
-            }
-
-            // Last page
-            if (endPage < totalPages - 1) {
-                if (endPage < totalPages - 2) {
-                    const ellipsis = document.createElement('span');
-                    ellipsis.textContent = '...';
-                    ellipsis.style.padding = '0 8px';
-                    bookmarksPageNumbers.appendChild(ellipsis);
-                }
-                const lastPageBtn = document.createElement('span');
-                lastPageBtn.className = 'page-number';
-                lastPageBtn.textContent = totalPages;
-                lastPageBtn.onclick = () => loadBookmarks(totalPages - 1);
-                bookmarksPageNumbers.appendChild(lastPageBtn);
-            }
-
-            // Setup prev/next button handlers
-            bookmarksPrevPage.onclick = () => {
-                if (currentPage > 0) {
-                    loadBookmarks(currentPage - 1);
-                }
-            };
-
-            bookmarksNextPage.onclick = () => {
-                if (currentPage < totalPages - 1) {
-                    loadBookmarks(currentPage + 1);
-                }
-            };
+            pageBtn.textContent = i + 1;
+            pageBtn.onclick = () => loadBookmarks(i);
+            bookmarksPageNumbers.appendChild(pageBtn);
         }
 
-        // Clear user bookmarks
-        async function clearBookmarks() {
-            // Get user ID from Telegram Web App
-            const userId = getUserId();
-            if (!userId) {
-                alert('无法获取用户信息，请确保在Telegram中打开此页面。');
-                return;
+        // Last page
+        if (endPage < totalPages - 1) {
+            if (endPage < totalPages - 2) {
+                const ellipsis = document.createElement('span');
+                ellipsis.textContent = '...';
+                ellipsis.style.padding = '0 8px';
+                bookmarksPageNumbers.appendChild(ellipsis);
             }
-
-            // Confirm before clearing
-            if (!confirm('确定要清空所有书签吗？此操作不可撤销。')) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_BASE}/bookmarks/clear?userId=${userId}`);
-                const data = await response.json();
-
-                if (!response.ok || !data.success) {
-                    throw new Error(data.error || 'Failed to clear bookmarks');
-                }
-
-                alert('书签已清空！');
-
-                // Refresh bookmarks list if it's visible
-                if (bookmarksSection.classList.contains('visible')) {
-                    loadBookmarks();
-                }
-            } catch (error) {
-                alert(`清空书签时出错: ${error.message}`);
-            }
+            const lastPageBtn = document.createElement('span');
+            lastPageBtn.className = 'page-number';
+            lastPageBtn.textContent = totalPages;
+            lastPageBtn.onclick = () => loadBookmarks(totalPages - 1);
+            bookmarksPageNumbers.appendChild(lastPageBtn);
         }
 
+        // Setup prev/next button handlers
+        bookmarksPrevPage.onclick = () => {
+            if (currentPage > 0) {
+                loadBookmarks(currentPage - 1);
+            }
+        };
+
+        bookmarksNextPage.onclick = () => {
+            if (currentPage < totalPages - 1) {
+                loadBookmarks(currentPage + 1);
+            }
+        };
+    }
+
+    // Clear user bookmarks
+    async function clearBookmarks() {
         // Get user ID from Telegram Web App
-        function getUserId() {
-            if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-                return tg.initDataUnsafe.user.id;
+        const userId = getUserId();
+        if (!userId) {
+            alert('无法获取用户信息，请确保在Telegram中打开此页面。');
+            return;
+        }
+
+        // Confirm before clearing
+        if (!confirm('确定要清空所有书签吗？此操作不可撤销。')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE}/bookmarks/clear?userId=${userId}`);
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Failed to clear bookmarks');
             }
-            return null;
-        }
 
-        // Simple HTML escape function
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+            alert('书签已清空！');
 
-        // Load books on page load (optional)
-        // window.addEventListener('DOMContentLoaded', () => {
-        //     // Uncomment to auto-load books on page load
-        //     // loadAllBooks();
-        // });
-    </script>
+            // Refresh bookmarks list if it's visible
+            if (bookmarksSection.classList.contains('visible')) {
+                loadBookmarks();
+            }
+        } catch (error) {
+            alert(`清空书签时出错: ${error.message}`);
+        }
+    }
+
+    // Get user ID from Telegram Web App
+    function getUserId() {
+        if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            return tg.initDataUnsafe.user.id;
+        }
+        return null;
+    }
+
+    // Simple HTML escape function
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Load books on page load (optional)
+    // window.addEventListener('DOMContentLoaded', () => {
+    //     // Uncomment to auto-load books on page load
+    //     // loadAllBooks();
+    // });
+</script>
 
 </body>
 </html>
