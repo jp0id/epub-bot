@@ -47,7 +47,8 @@ public class BookBot extends TelegramLongPollingBot {
         try {
             User me = execute(new GetMe());
             this.setBotCommands();
-            log.info("✅ Bot 启动成功: {}", me.getFirstName());
+            String baseUrl = options.getBaseUrl();
+            log.info("✅ Bot 启动成功: {}, baseUrl: [{}]", me.getFirstName(), baseUrl);
         } catch (TelegramApiException e) {
             throw new RuntimeException("Bot 连接失败", e);
         }

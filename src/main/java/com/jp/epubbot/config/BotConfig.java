@@ -25,15 +25,13 @@ public class BotConfig {
     @Value("${telegram.bot.admins:}")
     private String adminList;
 
+    @Value("${telegram.bot.base:https://api.telegram.org}")
+    private String baseUrl;
+
     @Bean
     public DefaultBotOptions defaultBotOptions() {
         DefaultBotOptions options = new DefaultBotOptions();
-
-//        options.setProxyHost("192.168.110.179");
-//        options.setProxyPort(6152);
-//
-//        options.setProxyType(DefaultBotOptions.ProxyType.HTTP);
-
+        options.setBaseUrl(baseUrl);
         return options;
     }
 

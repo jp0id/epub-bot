@@ -11,5 +11,6 @@ services:
       - TELEGRAPH_AUTHOR_NAME=EpubReader
       - APP_CHARS_PER_PAGE=4000
       - TELEGRAM_BOT_ADMINS=201728830,201728830
+      - TELEGRAM_BOT_BASE=https://api.telegram.org
     volumes:
       - ./data:/app/data
