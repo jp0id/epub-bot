@@ -120,7 +120,7 @@ public class BookBot extends TelegramLongPollingBot {
 
             if (info != null) {
                 bookmarkService.saveBookmarkForUser(chatId, info);
-                sendText(chatId, "✅ **书签已保存！**\n\n📖 书名: " + info.getBookName() + "\n📑 页码: " + info.getChapterTitle());
+                sendTextAsMarkdown(chatId, "✅ **书签已保存！**\n\n📖 书名: " + info.getBookName() + "\n📑 页码: " + info.getChapterTitle());
             } else {
                 sendText(chatId, "❌ 书签链接已失效或不存在。");
             }
