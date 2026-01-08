@@ -275,7 +275,13 @@
         <h1>EPUB Bot Mini App</h1>
         <div class="buttons-container">
             <button class="btn btn-primary" onclick="loadAllBooks()">
-                📚 Get All Books
+                📚 所有书籍
+            </button>
+            <button class="btn btn-primary" onclick="loadBookmarks()">
+                🔖 书签列表
+            </button>
+            <button class="btn btn-secondary" onclick="clearBookmarks()">
+                🗑️ 清空书签
             </button>
             <button class="btn btn-secondary" onclick="showTestInfo()">
                 ℹ️ App Info
@@ -284,7 +290,7 @@
 
         <div id="booksSection" class="books-section">
             <div class="books-header">
-                <div class="books-title">Available Books</div>
+                <div class="books-title">书籍列表</div>
                 <div class="books-count" id="booksCount">0 books</div>
             </div>
 
@@ -300,9 +306,27 @@
             </div>
         </div>
 
+        <div id="bookmarksSection" class="books-section">
+            <div class="books-header">
+                <div class="books-title">我的书签</div>
+                <div class="books-count" id="bookmarksCount">0 书签</div>
+            </div>
+
+            <div id="bookmarksLoading" class="loading" style="display: none;">
+                <div class="loading-spinner"></div>
+                加载书签...
+            </div>
+
+            <div id="bookmarksErrorContainer" class="error" style="display: none;"></div>
+
+            <div id="bookmarksList" class="books-list">
+                <!-- Bookmarks will be loaded here -->
+            </div>
+        </div>
+
         <div class="footer">
-            <a href="https://telegram.org" class="telegram-badge" target="_blank">
-                Powered by Telegram
+            <a href="https://t.me/pm_jp_bot" class="telegram-badge" target="_blank">
+                联系我
             </a>
         </div>
     </div>
@@ -368,6 +392,11 @@
         const booksCount = document.getElementById('booksCount');
         const loading = document.getElementById('loading');
         const errorContainer = document.getElementById('errorContainer');
+        const bookmarksSection = document.getElementById('bookmarksSection');
+        const bookmarksList = document.getElementById('bookmarksList');
+        const bookmarksCount = document.getElementById('bookmarksCount');
+        const bookmarksLoading = document.getElementById('bookmarksLoading');
+        const bookmarksErrorContainer = document.getElementById('bookmarksErrorContainer');
 
         // Show error message
         function showError(message) {
@@ -379,6 +408,18 @@
         // Hide error message
         function hideError() {
             errorContainer.style.display = 'none';
+        }
+
+        // Show bookmarks error message
+        function showBookmarksError(message) {
+            bookmarksErrorContainer.textContent = message;
+            bookmarksErrorContainer.style.display = 'block';
+            bookmarksLoading.style.display = 'none';
+        }
+
+        // Hide bookmarks error message
+        function hideBookmarksError() {
+            bookmarksErrorContainer.style.display = 'none';
         }
 
         // Load all books from API
@@ -412,7 +453,6 @@
                         bookElement.className = 'book-card';
                         bookElement.innerHTML = `
                             <div class="book-name">${escapeHtml(book.name)}</div>
-                            <div class="book-url">${escapeHtml(book.url)}</div>
                             <a href="${escapeHtml(book.url)}" class="book-link" target="_blank">
                                 Open in Telegraph
                             </a>
@@ -441,6 +481,102 @@
             } catch (error) {
                 showError(`Error loading app info: ${error.message}`);
             }
+        }
+
+        // Load user bookmarks
+        async function loadBookmarks() {
+            // Get user ID from Telegram Web App
+            const userId = getUserId();
+            if (!userId) {
+                showBookmarksError('无法获取用户信息，请确保在Telegram中打开此页面。');
+                return;
+            }
+
+            // Show loading and hide previous error
+            bookmarksLoading.style.display = 'block';
+            hideBookmarksError();
+            bookmarksList.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/bookmarks?userId=${userId}`);
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to load bookmarks');
+                }
+
+                // Hide loading
+                bookmarksLoading.style.display = 'none';
+
+                // Show bookmarks section
+                bookmarksSection.classList.add('visible');
+                booksSection.classList.remove('visible');
+
+                // Update count
+                bookmarksCount.textContent = `${data.count} 书签`;
+
+                // Render bookmarks
+                if (data.bookmarks && data.bookmarks.length > 0) {
+                    data.bookmarks.forEach(bookmark => {
+                        const bookmarkElement = document.createElement('div');
+                        bookmarkElement.className = 'book-card';
+                        bookmarkElement.innerHTML = `
+                            <div class="book-name">${escapeHtml(bookmark.bookName)}</div>
+                            <div class="book-url">${escapeHtml(bookmark.chapterTitle)}</div>
+                            <a href="${escapeHtml(bookmark.url)}" class="book-link" target="_blank">
+                                打开书签
+                            </a>
+                        `;
+                        bookmarksList.appendChild(bookmarkElement);
+                    });
+                } else {
+                    bookmarksList.innerHTML = '<div class="loading">暂无书签。阅读时点击"保存书签"即可添加书签。</div>';
+                }
+
+            } catch (error) {
+                showBookmarksError(`错误: ${error.message}`);
+            }
+        }
+
+        // Clear user bookmarks
+        async function clearBookmarks() {
+            // Get user ID from Telegram Web App
+            const userId = getUserId();
+            if (!userId) {
+                alert('无法获取用户信息，请确保在Telegram中打开此页面。');
+                return;
+            }
+
+            // Confirm before clearing
+            if (!confirm('确定要清空所有书签吗？此操作不可撤销。')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/bookmarks/clear?userId=${userId}`);
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to clear bookmarks');
+                }
+
+                alert('书签已清空！');
+
+                // Refresh bookmarks list if it's visible
+                if (bookmarksSection.classList.contains('visible')) {
+                    loadBookmarks();
+                }
+            } catch (error) {
+                alert(`清空书签时出错: ${error.message}`);
+            }
+        }
+
+        // Get user ID from Telegram Web App
+        function getUserId() {
+            if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                return tg.initDataUnsafe.user.id;
+            }
+            return null;
         }
 
         // Simple HTML escape function

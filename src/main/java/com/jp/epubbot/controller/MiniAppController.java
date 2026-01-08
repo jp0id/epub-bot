@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,6 +78,70 @@ public class MiniAppController {
             log.error("Failed to get books list", e);
             response.put("success", false);
             response.put("error", "Failed to retrieve books list");
+            response.put("timestamp", System.currentTimeMillis());
+        }
+
+        return response;
+    }
+
+    @GetMapping("/bookmarks")
+    public Map<String, Object> getUserBookmarks(Long userId) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            if (userId == null) {
+                response.put("success", false);
+                response.put("error", "User ID is required");
+                response.put("timestamp", System.currentTimeMillis());
+                return response;
+            }
+
+            List<BookmarkService.BookmarkInfo> bookmarks = bookmarkService.getUserBookmarks(userId);
+            List<Map<String, String>> bookmarkData = new ArrayList<>();
+            for (BookmarkService.BookmarkInfo bookmark : bookmarks) {
+                Map<String, String> bookmarkMap = new HashMap<>();
+                bookmarkMap.put("bookName", bookmark.getBookName());
+                bookmarkMap.put("chapterTitle", bookmark.getChapterTitle());
+                bookmarkMap.put("url", bookmark.getUrl());
+                bookmarkData.add(bookmarkMap);
+            }
+
+            response.put("success", true);
+            response.put("count", bookmarkData.size());
+            response.put("bookmarks", bookmarkData);
+            response.put("timestamp", System.currentTimeMillis());
+
+        } catch (Exception e) {
+            log.error("Failed to get user bookmarks", e);
+            response.put("success", false);
+            response.put("error", "Failed to retrieve bookmarks");
+            response.put("timestamp", System.currentTimeMillis());
+        }
+
+        return response;
+    }
+
+    @GetMapping("/bookmarks/clear")
+    public Map<String, Object> clearUserBookmarks(Long userId) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            if (userId == null) {
+                response.put("success", false);
+                response.put("error", "User ID is required");
+                response.put("timestamp", System.currentTimeMillis());
+                return response;
+            }
+
+            bookmarkService.clearBookmarks(userId);
+            response.put("success", true);
+            response.put("message", "Bookmarks cleared successfully");
+            response.put("timestamp", System.currentTimeMillis());
+
+        } catch (Exception e) {
+            log.error("Failed to clear user bookmarks", e);
+            response.put("success", false);
+            response.put("error", "Failed to clear bookmarks");
             response.put("timestamp", System.currentTimeMillis());
         }
 

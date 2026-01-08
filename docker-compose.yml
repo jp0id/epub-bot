@@ -5,6 +5,8 @@ services:
     image: jp0id/epub_bot:latest
     container_name: epub-bot
     restart: always
+    ports:
+      - "18088:18088"
     environment:
       - TELEGRAM_BOT_TOKEN=你的Token
       - TELEGRAM_BOT_USERNAME=你的BotName
