@@ -163,6 +163,9 @@
             font-weight: bold;
             color: #2d3748;
             margin-bottom: 8px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
         }
 
         .book-url {
@@ -335,9 +338,10 @@
 
         .group-book-name {
             flex: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            padding-right: 10px;
         }
 
         .group-count {
