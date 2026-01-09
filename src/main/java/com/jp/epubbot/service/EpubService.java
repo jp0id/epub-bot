@@ -14,6 +14,7 @@ import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -47,6 +48,8 @@ public class EpubService {
         int pageCounter = 1;
         TelegraphService.PageResult previousPage = null;
 
+        Map<String, String> uploadedImagesCache = new HashMap<>();
+
         log.info("开始解析书籍: {}", finalTitle);
 
         for (Resource res : contents) {
@@ -54,6 +57,9 @@ public class EpubService {
                 String html = new String(res.getData(), StandardCharsets.UTF_8);
                 Document doc = Jsoup.parse(html);
                 Element body = doc.body();
+
+                handleImages(doc, book, res.getHref(), uploadedImagesCache);
+
                 handleInlineNotes(body);
 
                 List<Map<String, Object>> nodes = new ArrayList<>();
@@ -105,6 +111,73 @@ public class EpubService {
         }
 
         return pageUrls;
+    }
+
+    /**
+     * 解析相对路径，获取资源在 EPUB 中的绝对 href
+     * 例如：当前在 Text/chapter1.html，引用 ../Images/1.jpg -> Images/1.jpg
+     */
+    private String resolveHref(String baseHref, String relativeHref) {
+        try {
+            relativeHref = java.net.URLDecoder.decode(relativeHref, StandardCharsets.UTF_8);
+
+            if (baseHref == null || baseHref.isEmpty()) return relativeHref;
+
+            java.net.URI baseUri = new java.net.URI("file:///" + baseHref);
+            java.net.URI resolvedUri = baseUri.resolve(relativeHref);
+
+            String path = resolvedUri.getPath();
+            if (path.startsWith("/")) {
+                path = path.substring(1);
+            }
+            return path;
+        } catch (Exception e) {
+            return relativeHref;
+        }
+    }
+
+    private void handleImages(Document doc, Book book, String currentResourceHref, Map<String, String> cache) {
+        Elements imgs = doc.select("img");
+        if (imgs.isEmpty()) return;
+
+        log.debug("正在处理章节图片，共 {} 张", imgs.size());
+
+        for (Element img : imgs) {
+            String src = img.attr("src");
+            if (src.isEmpty() || src.startsWith("http")) continue;
+
+            try {
+                String imageHref = resolveHref(currentResourceHref, src);
+
+                if (cache.containsKey(imageHref)) {
+                    img.attr("src", cache.get(imageHref));
+                    continue;
+                }
+
+                Resource imageRes = book.getResources().getByHref(imageHref);
+                if (imageRes == null) {
+                    String fileName = new File(src).getName();
+                    log.debug("未找到图片资源: {}", imageHref);
+                    img.remove();
+                    continue;
+                }
+
+                String contentType = imageRes.getMediaType() != null ? imageRes.getMediaType().toString() : "image/jpeg";
+                String remoteUrl = telegraphService.uploadImage(imageRes.getData(), contentType);
+
+                if (remoteUrl != null) {
+                    cache.put(imageHref, remoteUrl);
+                    img.attr("src", remoteUrl);
+                    img.attr("style", "max-width: 100%;");
+                } else {
+                    img.remove();
+                }
+
+            } catch (Exception e) {
+                log.warn("处理图片异常: {} - {}", src, e.getMessage());
+                img.remove();
+            }
+        }
     }
 
     /**

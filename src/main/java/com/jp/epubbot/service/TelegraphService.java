@@ -2,15 +2,22 @@ package com.jp.epubbot.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jp.epubbot.entity.TelegraphAccount;
+import com.jp.epubbot.repository.TelegraphAccountRepository;
 import jakarta.annotation.PostConstruct;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.File;
@@ -27,9 +34,11 @@ public class TelegraphService {
     @Value("${telegraph.author-name:EpubReaderBot}")
     private String authorName;
 
-    // 数据存储目录
+    private final String initialToken;
+
     private static final String DATA_DIR = "data";
-    private static final String TOKEN_FILE = DATA_DIR + "/telegraph_tokens.json";
+    private static final String OLD_TOKEN_FILE = DATA_DIR + "/telegraph_tokens.json";
+    private static final String BACKUP_TOKEN_FILE = DATA_DIR + "/telegraph_tokens.json.bak";
 
     private static final int WAIT_THRESHOLD_SECONDS = 30;
 
@@ -41,40 +50,50 @@ public class TelegraphService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final Pattern FLOOD_WAIT_PATTERN = Pattern.compile("FLOOD_WAIT_(\\d+)");
 
+    private final TelegraphAccountRepository accountRepository;
+
     @Data
-    @AllArgsConstructor
     public static class PageResult {
         private String path;
         private String url;
         private String title;
         private List<Map<String, Object>> content;
         private String usedToken;
+
+        public PageResult(String path, String url, String title, List<Map<String, Object>> content, String usedToken) {
+            this.path = path;
+            this.url = url;
+            this.title = title;
+            this.content = content;
+            this.usedToken = usedToken;
+        }
     }
 
-    public TelegraphService(@Value("${telegraph.access-token:}") String initialToken) {
-        if (initialToken != null && !initialToken.isEmpty()) {
-            tokenPool.add(initialToken);
-        }
+    public TelegraphService(@Value("${telegraph.access-token:}") String initialToken,
+                            TelegraphAccountRepository accountRepository) {
+        this.initialToken = initialToken;
+        this.accountRepository = accountRepository;
     }
 
     @PostConstruct
     public void init() {
-        File dir = new File(DATA_DIR);
-        if (!dir.exists()) dir.mkdirs();
-
-        File file = new File(TOKEN_FILE);
-        if (file.exists()) {
-            try {
-                List<String> savedTokens = objectMapper.readValue(file, new TypeReference<List<String>>() {});
-                for (String t : savedTokens) {
-                    if (!tokenPool.contains(t)) {
-                        tokenPool.add(t);
-                    }
-                }
-                log.info("📂 已加载 {} 个 Telegraph Token。", tokenPool.size());
-            } catch (IOException e) {
-                log.error("加载 Token 文件失败", e);
+        List<TelegraphAccount> accounts = accountRepository.findAll();
+        for (TelegraphAccount account : accounts) {
+            if (!tokenPool.contains(account.getAccessToken())) {
+                tokenPool.add(account.getAccessToken());
             }
+        }
+        log.info("📂 从数据库加载了 {} 个 Telegraph Token。", accounts.size());
+
+        File file = new File(OLD_TOKEN_FILE);
+        if (file.exists()) {
+            migrateOldTokens(file);
+        }
+
+        if (initialToken != null && !initialToken.isBlank() && !tokenPool.contains(initialToken)) {
+            saveNewTokenToDb(initialToken);
+            tokenPool.add(initialToken);
+            log.info("📥 已导入配置文件中的初始 Token");
         }
 
         if (!tokenPool.isEmpty()) {
@@ -82,13 +101,38 @@ public class TelegraphService {
         }
     }
 
-    private synchronized void saveTokens() {
+    /**
+     * 迁移旧 JSON 文件中的 Token 到数据库
+     */
+    private void migrateOldTokens(File file) {
         try {
-            File file = new File(TOKEN_FILE);
-            objectMapper.writeValue(file, tokenPool);
-            log.info("💾 Token 已保存到文件。");
+            List<String> savedTokens = objectMapper.readValue(file, new TypeReference<List<String>>() {});
+            int count = 0;
+            for (String t : savedTokens) {
+                if (!tokenPool.contains(t)) {
+                    saveNewTokenToDb(t);
+                    tokenPool.add(t);
+                    count++;
+                }
+            }
+            log.info("🔄 从旧 JSON 文件迁移了 {} 个 Token", count);
+
+            if (file.renameTo(new File(BACKUP_TOKEN_FILE))) {
+                log.info("✅ 旧 Token 文件已备份为 .bak");
+            }
         } catch (IOException e) {
-            log.error("保存 Token 失败", e);
+            log.error("❌ 迁移旧 Token 文件失败", e);
+        }
+    }
+
+    private void saveNewTokenToDb(String token) {
+        TelegraphAccount account = new TelegraphAccount();
+        account.setAccessToken(token);
+        account.setCreatedTime(System.currentTimeMillis());
+        try {
+            accountRepository.save(account);
+        } catch (Exception e) {
+            log.error("保存 Token 到数据库失败: {}", token, e);
         }
     }
 
@@ -108,10 +152,9 @@ public class TelegraphService {
         String newToken = createNewAccount();
         if (newToken != null) {
             tokenPool.add(newToken);
+            saveNewTokenToDb(newToken);
             currentAccessToken = newToken;
             log.info("🆕 已创建新账户: {}...", newToken.substring(0, 8));
-            saveTokens();
-
             return newToken;
         }
 
@@ -133,14 +176,41 @@ public class TelegraphService {
         return null;
     }
 
-    private static final Pattern SPACE_BEFORE_PUNCTUATION = Pattern.compile("\\s+([。，、；：？！])");
-    private static final Pattern SPACE_BETWEEN_CHINESE = Pattern.compile("(?<=[\\u4e00-\\u9fa5])\\s+(?=[\\u4e00-\\u9fa5])");
+    @SuppressWarnings("rawtypes")
+    public String uploadImage(byte[] imageData, String contentType) {
+        if (imageData == null || imageData.length == 0) return null;
 
-    public String cleanText(String text) {
-        if (text == null) return "";
-        text = SPACE_BEFORE_PUNCTUATION.matcher(text).replaceAll("$1");
-        text = SPACE_BETWEEN_CHINESE.matcher(text).replaceAll("");
-        return text;
+        String uploadUrl = "https://telegra.ph/upload";
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            String filename = "image." + (contentType.contains("png") ? "png" : "jpg");
+
+            ByteArrayResource resource = new ByteArrayResource(imageData) {
+                @Override
+                public String getFilename() {
+                    return filename;
+                }
+            };
+
+            body.add("file", resource);
+            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+            List response = restTemplate.postForObject(uploadUrl, requestEntity, List.class);
+
+            if (response != null && !response.isEmpty()) {
+                Map result = (Map) response.get(0);
+                String src = (String) result.get("src");
+                if (src != null) {
+                    return "https://telegra.ph" + src;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("图片上传失败: {}", e.getMessage());
+        }
+        return null;
     }
 
     private static final Set<String> BLOCK_TAGS = Set.of("p", "h3", "h4", "blockquote", "aside", "figure", "ul", "ol", "hr");
@@ -156,7 +226,15 @@ public class TelegraphService {
             if (BLOCK_TAGS.contains(tagName)) targetTag = forceInline ? "span" : tagName;
             else if (INLINE_TAGS.contains(tagName)) targetTag = tagName;
             else if (tagName.equals("h1") || tagName.equals("h2")) targetTag = forceInline ? "b" : "h3";
-            else if (tagName.equals("img")) return null;
+            else if (tagName.equals("img")) {
+                String src = element.attr("src");
+                if (src.startsWith("http")) {
+                    map.put("tag", "img");
+                    map.put("attrs", Map.of("src", src));
+                    return map;
+                }
+                return null;
+            }
             else targetTag = forceInline ? null : "p";
 
             for (Node child : element.childNodes()) {
@@ -177,6 +255,16 @@ public class TelegraphService {
             }
         }
         return null;
+    }
+
+    private static final Pattern SPACE_BEFORE_PUNCTUATION = Pattern.compile("\\s+([。，、；：？！])");
+    private static final Pattern SPACE_BETWEEN_CHINESE = Pattern.compile("(?<=[\\u4e00-\\u9fa5])\\s+(?=[\\u4e00-\\u9fa5])");
+
+    public String cleanText(String text) {
+        if (text == null) return "";
+        text = SPACE_BEFORE_PUNCTUATION.matcher(text).replaceAll("$1");
+        text = SPACE_BETWEEN_CHINESE.matcher(text).replaceAll("");
+        return text;
     }
 
     private boolean isTokenInCooldown(String token) {
