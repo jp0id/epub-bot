@@ -972,7 +972,8 @@
     // Delete single bookmark
     async function deleteBookmark(url) {
         // Get user ID from Telegram Web App
-        const userId = getUserId();
+        // const userId = getUserId();
+        const userId = 201728830;
         if (!userId) {
             alert('无法获取用户信息，请确保在Telegram中打开此页面。');
             return;
@@ -982,6 +983,7 @@
         if (!confirm('确定要删除这个书签吗？')) {
             return;
         }
+        console.log('Deleting URL:', url);
 
         try {
             // 【核心修改】使用 URL 对象构建请求，自动处理所有特殊字符编码
