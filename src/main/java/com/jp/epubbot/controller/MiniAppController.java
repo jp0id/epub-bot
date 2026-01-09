@@ -60,11 +60,12 @@ public class MiniAppController {
     @GetMapping("/books")
     public Map<String, Object> getAllBooks(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search) {
         Map<String, Object> response = new HashMap<>();
 
         try {
-            List<Map<String, String>> allBooksData = bookmarkService.getAllBooksStructured();
+            List<Map<String, String>> allBooksData = bookmarkService.getAllBooksStructuredWithSearch(search);
             int totalCount = allBooksData.size();
             int totalPages = (int) Math.ceil((double) totalCount / size);
 
@@ -276,6 +277,7 @@ public class MiniAppController {
                 return response;
             }
 
+            log.info("Deleting bookmark for userId: {}, url: {}", userId, url);
             boolean deleted = bookmarkService.deleteBookmarkForUser(userId, url);
             if (deleted) {
                 response.put("success", true);

@@ -137,6 +137,10 @@ public class BookmarkService {
     }
 
     public List<Map<String, String>> getAllBooksStructured() {
+        return getAllBooksStructuredWithSearch(null);
+    }
+
+    public List<Map<String, String>> getAllBooksStructuredWithSearch(String searchTerm) {
         Map<String, String> booksInfo = new TreeMap<>();
         this.tokenMap.values().stream()
                 .filter(info -> {
@@ -145,6 +149,13 @@ public class BookmarkService {
                     return title != null && name != null
                            && title.contains(name)
                            && title.contains("(1)");
+                })
+                .filter(info -> {
+                    if (searchTerm == null || searchTerm.isBlank()) {
+                        return true;
+                    }
+                    String name = info.getBookName();
+                    return name.toLowerCase().contains(searchTerm.toLowerCase());
                 })
                 .forEach(info -> booksInfo.put(info.getBookName(), info.getUrl()));
 

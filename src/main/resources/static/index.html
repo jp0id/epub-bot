@@ -131,6 +131,36 @@
             color: #2d3748;
         }
 
+        .books-search {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .books-search input {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            min-width: 200px;
+        }
+
+        .books-search button {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.3s;
+        }
+
+        .books-search button:hover {
+            background: #5a67d8;
+        }
+
         .books-count {
             background: #c6f6d5;
             color: #22543d;
@@ -431,6 +461,11 @@
     <div id="booksSection" class="books-section">
         <div class="books-header">
             <div class="books-title">书籍列表</div>
+            <div class="books-search">
+                <input type="text" id="booksSearchInput" placeholder="搜索书籍名称..." />
+                <button id="booksSearchButton">搜索</button>
+                <button id="booksClearSearchButton" style="display: none;">清除</button>
+            </div>
             <div class="books-count" id="booksCount">0 books</div>
         </div>
 
@@ -805,7 +840,7 @@
                                         <a href="${escapeHtml(bookmark.url)}" class="book-link" target="_blank">
                                             打开书签
                                         </a>
-                                        <button class="delete-btn" onclick="deleteBookmark('${bookmark.url.replace(/'/g, "\\'")}')">
+                                        <button class="delete-btn" onclick="deleteBookmark('${encodeURIComponent(bookmark.url).replace(/'/g, "\\'")}')">
                                             🗑️ 删除
                                         </button>
                                     </div>
@@ -954,7 +989,10 @@
         }
 
         try {
-            const response = await fetch(`${API_BASE}/bookmarks?userId=${userId}&url=${encodeURIComponent(url)}`, {
+            console.log('Deleting bookmark, encoded url param:', url);
+            const decodedUrl = decodeURIComponent(url);
+            console.log('Decoded url:', decodedUrl);
+            const response = await fetch(`${API_BASE}/bookmarks?userId=${userId}&url=${encodeURIComponent(decodedUrl)}`, {
                 method: 'DELETE'
             });
             const data = await response.json();
