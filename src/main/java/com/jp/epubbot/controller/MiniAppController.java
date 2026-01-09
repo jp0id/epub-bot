@@ -107,7 +107,7 @@ public class MiniAppController {
             Long userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Map<String, Object> response = new HashMap<>();
+        Map<String, Object> response = new TreeMap<>();
 
         try {
             if (userId == null) {
@@ -120,7 +120,7 @@ public class MiniAppController {
             List<BookmarkService.BookmarkInfo> allBookmarks = bookmarkService.getUserBookmarks(userId);
 
             // Group bookmarks by book name
-            Map<String, List<BookmarkService.BookmarkInfo>> bookGroups = new LinkedHashMap<>();
+            Map<String, List<BookmarkService.BookmarkInfo>> bookGroups = new TreeMap<>();
             for (BookmarkService.BookmarkInfo bookmark : allBookmarks) {
                 String bookName = bookmark.getBookName();
                 if (bookName == null) bookName = "未知书籍";
@@ -132,7 +132,7 @@ public class MiniAppController {
             // For pagination, we need to count by groups to keep groups intact
             List<Map<String, Object>> allGroups = new ArrayList<>();
             for (Map.Entry<String, List<BookmarkService.BookmarkInfo>> entry : bookGroups.entrySet()) {
-                Map<String, Object> group = new HashMap<>();
+                Map<String, Object> group = new TreeMap<>();
                 group.put("bookName", entry.getKey());
 
                 List<Map<String, String>> groupBookmarks = new ArrayList<>();

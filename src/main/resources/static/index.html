@@ -451,7 +451,7 @@
             🔖 我的书签
         </button>
         <button class="btn btn-secondary" onclick="clearBookmarks()">
-            🗑️ 清空书签
+            🗑️ 清空所有书签
         </button>
         <button class="btn btn-secondary" onclick="showTestInfo()">
             ℹ️ App Info
@@ -779,8 +779,7 @@
         currentBookmarksPage = page;
 
         // Get user ID from Telegram Web App
-        // const userId = getUserId();
-        const userId = 201728830;
+        const userId = getUserId();
         if (!userId) {
             showBookmarksError('无法获取用户信息，请确保在Telegram中打开此页面。');
             return;
@@ -973,8 +972,7 @@
     // Delete single bookmark
     async function deleteBookmark(url) {
         // Get user ID from Telegram Web App
-        // const userId = getUserId();
-        const userId = 201728830;
+        const userId = getUserId();
         if (!userId) {
             alert('无法获取用户信息，请确保在Telegram中打开此页面。');
             return;
