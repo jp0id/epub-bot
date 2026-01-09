@@ -984,7 +984,7 @@
         }
 
         try {
-            const response = await fetch(`${API_BASE}/bookmarks?userId=${userId}&url=${url}`, {
+            const response = await fetch(`${API_BASE}/bookmarks?userId=${userId}&url=${encodeURIComponent(url)}`, {
                 method: 'DELETE'
             });
             const data = await response.json();
