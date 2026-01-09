@@ -3,15 +3,19 @@ package com.jp.epubbot.config;
 import com.jp.epubbot.service.BookBot;
 import com.jp.epubbot.service.BookmarkService;
 import com.jp.epubbot.service.EpubService;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
-import java.util.List;
+import java.util.Collections;
 
 @Configuration
 public class BotConfig {
@@ -25,7 +29,7 @@ public class BotConfig {
     @Value("${telegram.bot.admins:}")
     private String adminList;
 
-    @Value("${telegram.bot.base:https://api.telegram.org}")
+    @Value("${telegram.bot.base:}")
     private String baseUrl;
 
     @Value("${telegram.bot.webapp-url:}")
@@ -34,7 +38,9 @@ public class BotConfig {
     @Bean
     public DefaultBotOptions defaultBotOptions() {
         DefaultBotOptions options = new DefaultBotOptions();
-        options.setBaseUrl(baseUrl);
+        if (StringUtils.isNoneEmpty()) {
+            options.setBaseUrl(baseUrl);
+        }
         return options;
     }
 
@@ -48,5 +54,17 @@ public class BotConfig {
         TelegramBotsApi api = new TelegramBotsApi(DefaultBotSession.class);
         api.registerBot(bookBot);
         return api;
+    }
+
+    @Bean
+    public CorsFilter corsFilter() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOriginPatterns(Collections.singletonList("*"));
+        config.addAllowedHeader("*");
+        config.addAllowedMethod("*");
+        config.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return new CorsFilter(source);
     }
 }

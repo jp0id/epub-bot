@@ -6,7 +6,7 @@ telegram:
     username: ""
     token: "7589476199:xxxx"
     admins: 201728830
-    base: "http://47.243.197.2:8081/bot"
+    base: "http://47.243.197.2:8081"
     webapp-url: https://xx.xx.com/app
 
 telegraph:
