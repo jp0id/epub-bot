@@ -191,6 +191,30 @@
             background: #5a67d8;
         }
 
+        .bookmark-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .delete-btn {
+            display: inline-block;
+            background: #e53e3e;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .delete-btn:hover {
+            background: #c53030;
+        }
+
         .loading {
             text-align: center;
             padding: 40px;
@@ -777,9 +801,14 @@
                             bookmarkElement.innerHTML = `
                                     <div class="book-name">${escapeHtml(bookmark.bookName)}</div>
                                     <div class="book-url">${escapeHtml(bookmark.chapterTitle)}</div>
-                                    <a href="${escapeHtml(bookmark.url)}" class="book-link" target="_blank">
-                                        打开书签
-                                    </a>
+                                    <div class="bookmark-actions">
+                                        <a href="${escapeHtml(bookmark.url)}" class="book-link" target="_blank">
+                                            打开书签
+                                        </a>
+                                        <button class="delete-btn" onclick="deleteBookmark('${bookmark.url.replace(/'/g, "\\'")}')">
+                                            🗑️ 删除
+                                        </button>
+                                    </div>
                                 `;
                             bookmarksList.appendChild(bookmarkElement);
                         });
@@ -907,6 +936,41 @@
             }
         } catch (error) {
             alert(`清空书签时出错: ${error.message}`);
+        }
+    }
+
+    // Delete single bookmark
+    async function deleteBookmark(url) {
+        // Get user ID from Telegram Web App
+        const userId = getUserId();
+        if (!userId) {
+            alert('无法获取用户信息，请确保在Telegram中打开此页面。');
+            return;
+        }
+
+        // Confirm before deleting
+        if (!confirm('确定要删除这个书签吗？')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE}/bookmarks?userId=${userId}&url=${encodeURIComponent(url)}`, {
+                method: 'DELETE'
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Failed to delete bookmark');
+            }
+
+            alert('书签已删除！');
+
+            // Refresh bookmarks list if it's visible
+            if (bookmarksSection.classList.contains('visible')) {
+                loadBookmarks();
+            }
+        } catch (error) {
+            alert(`删除书签时出错: ${error.message}`);
         }
     }
 

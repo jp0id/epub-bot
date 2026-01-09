@@ -4,10 +4,7 @@ import com.jp.epubbot.service.BookmarkService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
@@ -255,6 +252,45 @@ public class MiniAppController {
             log.error("Failed to clear user bookmarks", e);
             response.put("success", false);
             response.put("error", "Failed to clear bookmarks");
+            response.put("timestamp", System.currentTimeMillis());
+        }
+
+        return response;
+    }
+
+    @DeleteMapping("/bookmarks")
+    public Map<String, Object> deleteBookmark(Long userId, String url) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            if (userId == null) {
+                response.put("success", false);
+                response.put("error", "User ID is required");
+                response.put("timestamp", System.currentTimeMillis());
+                return response;
+            }
+            if (url == null || url.isBlank()) {
+                response.put("success", false);
+                response.put("error", "URL is required");
+                response.put("timestamp", System.currentTimeMillis());
+                return response;
+            }
+
+            boolean deleted = bookmarkService.deleteBookmarkForUser(userId, url);
+            if (deleted) {
+                response.put("success", true);
+                response.put("message", "Bookmark deleted successfully");
+                response.put("timestamp", System.currentTimeMillis());
+            } else {
+                response.put("success", false);
+                response.put("error", "Bookmark not found");
+                response.put("timestamp", System.currentTimeMillis());
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to delete bookmark", e);
+            response.put("success", false);
+            response.put("error", "Failed to delete bookmark");
             response.put("timestamp", System.currentTimeMillis());
         }
 

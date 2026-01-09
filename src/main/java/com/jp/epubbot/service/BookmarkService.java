@@ -103,6 +103,18 @@ public class BookmarkService {
         saveData();
     }
 
+    public boolean deleteBookmarkForUser(Long userId, String url) {
+        List<BookmarkInfo> bookmarks = userBookmarks.get(userId);
+        if (bookmarks == null) {
+            return false;
+        }
+        boolean removed = bookmarks.removeIf(info -> url.equals(info.getUrl()));
+        if (removed) {
+            saveData();
+        }
+        return removed;
+    }
+
     public String findAllBooks() {
         Map<String, String> booksInfo = new TreeMap<>();
         this.tokenMap.values().stream()
