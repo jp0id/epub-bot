@@ -835,7 +835,7 @@
                                         <a href="${escapeHtml(bookmark.url)}" class="book-link" target="_blank">
                                             打开书签
                                         </a>
-                                        <button class="delete-btn" onclick="deleteBookmark('${escapeHtml(bookmark.url)}')">
+                                        <button class="delete-btn" onclick="deleteBookmark(decodeURIComponent('${encodeURIComponent(bookmark.url)}'))">
                                             🗑️ 删除
                                         </button>
                                     </div>
@@ -984,9 +984,18 @@
         }
 
         try {
-            const response = await fetch(`${API_BASE}/bookmarks?userId=${userId}&url=${encodeURIComponent(url)}`, {
+            // 【核心修改】使用 URL 对象构建请求，自动处理所有特殊字符编码
+            const targetUrl = new URL(`${API_BASE}/bookmarks`);
+            targetUrl.searchParams.append('userId', userId);
+            targetUrl.searchParams.append('url', url);
+
+            // 打印日志以便调试（可选）
+            console.log('Deleting URL:', targetUrl.toString());
+
+            const response = await fetch(targetUrl.toString(), {
                 method: 'DELETE'
             });
+
             const data = await response.json();
 
             if (!response.ok || !data.success) {
@@ -1000,7 +1009,9 @@
                 loadBookmarks();
             }
         } catch (error) {
+            // 显示详细错误信息
             alert(`删除书签时出错: ${error.message}`);
+            console.error(error);
         }
     }
 
