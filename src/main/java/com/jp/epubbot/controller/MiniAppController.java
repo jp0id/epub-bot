@@ -298,4 +298,223 @@ public class MiniAppController {
 
         return response;
     }
+
+    // ==================== 阅读位置相关API ====================
+
+    /**
+     * 保存或更新阅读位置
+     */
+    @PostMapping("/reading-positions")
+    public Map<String, Object> saveReadingPosition(
+            Long userId,
+            @RequestBody BookmarkService.ReadingPosition position) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            if (userId == null) {
+                response.put("success", false);
+                response.put("error", "User ID is required");
+                response.put("timestamp", System.currentTimeMillis());
+                return response;
+            }
+            if (position == null || position.getBookName() == null) {
+                response.put("success", false);
+                response.put("error", "Reading position data is required");
+                response.put("timestamp", System.currentTimeMillis());
+                return response;
+            }
+
+            bookmarkService.saveReadingPosition(userId, position);
+            response.put("success", true);
+            response.put("message", "Reading position saved successfully");
+            response.put("timestamp", System.currentTimeMillis());
+
+        } catch (Exception e) {
+            log.error("Failed to save reading position", e);
+            response.put("success", false);
+            response.put("error", "Failed to save reading position");
+            response.put("timestamp", System.currentTimeMillis());
+        }
+
+        return response;
+    }
+
+    /**
+     * 获取用户的所有阅读位置
+     */
+    @GetMapping("/reading-positions")
+    public Map<String, Object> getAllReadingPositions(Long userId) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            if (userId == null) {
+                response.put("success", false);
+                response.put("error", "User ID is required");
+                response.put("timestamp", System.currentTimeMillis());
+                return response;
+            }
+
+            List<BookmarkService.ReadingPosition> positions = bookmarkService.getAllReadingPositions(userId);
+            response.put("success", true);
+            response.put("positions", positions);
+            response.put("count", positions.size());
+            response.put("timestamp", System.currentTimeMillis());
+
+        } catch (Exception e) {
+            log.error("Failed to get reading positions", e);
+            response.put("success", false);
+            response.put("error", "Failed to retrieve reading positions");
+            response.put("timestamp", System.currentTimeMillis());
+        }
+
+        return response;
+    }
+
+    /**
+     * 获取用户的特定书籍阅读位置
+     */
+    @GetMapping("/reading-positions/{bookName}")
+    public Map<String, Object> getReadingPosition(
+            Long userId,
+            @PathVariable String bookName) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            if (userId == null) {
+                response.put("success", false);
+                response.put("error", "User ID is required");
+                response.put("timestamp", System.currentTimeMillis());
+                return response;
+            }
+            if (bookName == null || bookName.isBlank()) {
+                response.put("success", false);
+                response.put("error", "Book name is required");
+                response.put("timestamp", System.currentTimeMillis());
+                return response;
+            }
+
+            BookmarkService.ReadingPosition position = bookmarkService.getReadingPosition(userId, bookName);
+            if (position != null) {
+                response.put("success", true);
+                response.put("position", position);
+                response.put("timestamp", System.currentTimeMillis());
+            } else {
+                response.put("success", false);
+                response.put("error", "Reading position not found");
+                response.put("timestamp", System.currentTimeMillis());
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to get reading position", e);
+            response.put("success", false);
+            response.put("error", "Failed to retrieve reading position");
+            response.put("timestamp", System.currentTimeMillis());
+        }
+
+        return response;
+    }
+
+    /**
+     * 删除用户的特定书籍阅读位置
+     */
+    @DeleteMapping("/reading-positions/{bookName}")
+    public Map<String, Object> deleteReadingPosition(
+            Long userId,
+            @PathVariable String bookName) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            if (userId == null) {
+                response.put("success", false);
+                response.put("error", "User ID is required");
+                response.put("timestamp", System.currentTimeMillis());
+                return response;
+            }
+            if (bookName == null || bookName.isBlank()) {
+                response.put("success", false);
+                response.put("error", "Book name is required");
+                response.put("timestamp", System.currentTimeMillis());
+                return response;
+            }
+
+            boolean deleted = bookmarkService.deleteReadingPosition(userId, bookName);
+            if (deleted) {
+                response.put("success", true);
+                response.put("message", "Reading position deleted successfully");
+                response.put("timestamp", System.currentTimeMillis());
+            } else {
+                response.put("success", false);
+                response.put("error", "Reading position not found");
+                response.put("timestamp", System.currentTimeMillis());
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to delete reading position", e);
+            response.put("success", false);
+            response.put("error", "Failed to delete reading position");
+            response.put("timestamp", System.currentTimeMillis());
+        }
+
+        return response;
+    }
+
+    /**
+     * 清除用户的所有阅读位置
+     */
+    @DeleteMapping("/reading-positions")
+    public Map<String, Object> clearReadingPositions(Long userId) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            if (userId == null) {
+                response.put("success", false);
+                response.put("error", "User ID is required");
+                response.put("timestamp", System.currentTimeMillis());
+                return response;
+            }
+
+            bookmarkService.clearReadingPositions(userId);
+            response.put("success", true);
+            response.put("message", "All reading positions cleared successfully");
+            response.put("timestamp", System.currentTimeMillis());
+
+        } catch (Exception e) {
+            log.error("Failed to clear reading positions", e);
+            response.put("success", false);
+            response.put("error", "Failed to clear reading positions");
+            response.put("timestamp", System.currentTimeMillis());
+        }
+
+        return response;
+    }
+
+    /**
+     * 获取用户的阅读统计信息
+     */
+    @GetMapping("/reading-positions/stats")
+    public Map<String, Object> getReadingStats(Long userId) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            if (userId == null) {
+                response.put("success", false);
+                response.put("error", "User ID is required");
+                response.put("timestamp", System.currentTimeMillis());
+                return response;
+            }
+
+            Map<String, Object> stats = bookmarkService.getReadingStats(userId);
+            response.put("success", true);
+            response.put("stats", stats);
+            response.put("timestamp", System.currentTimeMillis());
+
+        } catch (Exception e) {
+            log.error("Failed to get reading stats", e);
+            response.put("success", false);
+            response.put("error", "Failed to retrieve reading stats");
+            response.put("timestamp", System.currentTimeMillis());
+        }
+
+        return response;
+    }
 }

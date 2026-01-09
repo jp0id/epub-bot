@@ -461,11 +461,6 @@
     <div id="booksSection" class="books-section">
         <div class="books-header">
             <div class="books-title">书籍列表</div>
-            <div class="books-search">
-                <input type="text" id="booksSearchInput" placeholder="搜索书籍名称..." />
-                <button id="booksSearchButton">搜索</button>
-                <button id="booksClearSearchButton" style="display: none;">清除</button>
-            </div>
             <div class="books-count" id="booksCount">0 books</div>
         </div>
 
@@ -840,7 +835,7 @@
                                         <a href="${escapeHtml(bookmark.url)}" class="book-link" target="_blank">
                                             打开书签
                                         </a>
-                                        <button class="delete-btn" onclick="deleteBookmark('${encodeURIComponent(bookmark.url).replace(/'/g, "\\'")}')">
+                                        <button class="delete-btn" onclick="deleteBookmark('${escapeHtml(bookmark.url)}')">
                                             🗑️ 删除
                                         </button>
                                     </div>
@@ -989,10 +984,7 @@
         }
 
         try {
-            console.log('Deleting bookmark, encoded url param:', url);
-            const decodedUrl = decodeURIComponent(url);
-            console.log('Decoded url:', decodedUrl);
-            const response = await fetch(`${API_BASE}/bookmarks?userId=${userId}&url=${encodeURIComponent(decodedUrl)}`, {
+            const response = await fetch(`${API_BASE}/bookmarks?userId=${userId}&url=${url}`, {
                 method: 'DELETE'
             });
             const data = await response.json();
