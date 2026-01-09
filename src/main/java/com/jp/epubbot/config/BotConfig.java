@@ -38,7 +38,7 @@ public class BotConfig {
     @Bean
     public DefaultBotOptions defaultBotOptions() {
         DefaultBotOptions options = new DefaultBotOptions();
-        if (StringUtils.isNoneEmpty()) {
+        if (StringUtils.isNotEmpty(baseUrl)) {
             options.setBaseUrl(baseUrl);
         }
         return options;
