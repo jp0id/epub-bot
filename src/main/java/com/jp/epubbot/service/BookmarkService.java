@@ -1,7 +1,6 @@
 package com.jp.epubbot.service;
 
 import com.jp.epubbot.entity.BookmarkToken;
-import com.jp.epubbot.entity.ReadingPosition;
 import com.jp.epubbot.entity.UserBookmark;
 import com.jp.epubbot.repository.BookmarkTokenRepository;
 import com.jp.epubbot.repository.ReadingPositionRepository;
@@ -27,7 +26,6 @@ public class BookmarkService {
 
     private final BookmarkTokenRepository tokenRepo;
     private final UserBookmarkRepository bookmarkRepo;
-    private final ReadingPositionRepository positionRepo;
 
     // --- DTOs 用于前后端交互 (保持原有的 DTO 结构不变) ---
     @Data
@@ -150,72 +148,5 @@ public class BookmarkService {
         }
 
         return books;
-    }
-
-    // --- 阅读位置相关 ---
-
-    public void saveReadingPosition(Long userId, ReadingPosition position) {
-        if (userId == null || position == null || position.getBookName() == null) return;
-
-        ReadingPosition existing = positionRepo.findByUserIdAndBookName(userId, position.getBookName())
-                .orElse(new ReadingPosition());
-
-        existing.setUserId(userId);
-        existing.setBookName(position.getBookName());
-        existing.setChapterTitle(position.getChapterTitle());
-        existing.setUrl(position.getUrl());
-        existing.setPosition(position.getPosition());
-
-        // 校验进度
-        double progress = position.getProgress() != null ? position.getProgress() : 0.0;
-        existing.setProgress(Math.max(0.0, Math.min(100.0, progress)));
-
-        existing.setTimestamp(System.currentTimeMillis());
-
-        positionRepo.save(existing);
-    }
-
-    public ReadingPosition getReadingPosition(Long userId, String bookName) {
-        return positionRepo.findByUserIdAndBookName(userId, bookName).orElse(null);
-    }
-
-    public List<ReadingPosition> getAllReadingPositions(Long userId) {
-        return positionRepo.findByUserId(userId);
-    }
-
-    @Transactional
-    public boolean deleteReadingPosition(Long userId, String bookName) {
-        try {
-            positionRepo.deleteByUserIdAndBookName(userId, bookName);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    @Transactional
-    public void clearReadingPositions(Long userId) {
-        positionRepo.deleteByUserId(userId);
-    }
-
-    public Map<String, Object> getReadingStats(Long userId) {
-        Map<String, Object> stats = new HashMap<>();
-        List<ReadingPosition> positions = positionRepo.findByUserIdOrderByTimestampDesc(userId);
-
-        stats.put("totalBooks", positions.size());
-        stats.put("recentlyRead", positions.stream().limit(5).collect(Collectors.toList()));
-
-        if (!positions.isEmpty()) {
-            double avg = positions.stream()
-                    .mapToDouble(p -> p.getProgress() != null ? p.getProgress() : 0.0)
-                    .average()
-                    .orElse(0.0);
-            stats.put("averageProgress", avg);
-            stats.put("booksWithProgress", positions.size());
-        } else {
-            stats.put("averageProgress", 0);
-            stats.put("booksWithProgress", 0);
-        }
-        return stats;
     }
 }

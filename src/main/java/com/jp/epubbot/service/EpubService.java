@@ -76,11 +76,9 @@ public class EpubService {
 
                         if (currentPage != null) {
                             pageUrls.add(currentPage.getUrl());
-                            bookmarkService.createBookmarkToken(finalTitle, pageTitle, currentPage.getUrl());
-
+                            String bookmarkToken = bookmarkService.createBookmarkToken(finalTitle, pageTitle, currentPage.getUrl());
                             if (previousPage != null) {
-                                String prevToken = bookmarkService.createBookmarkToken(finalTitle, previousPage.getTitle(), previousPage.getUrl());
-                                appendFooterLinks(previousPage, currentPage.getUrl(), prevToken, previousPage.getUsedToken());
+                                appendFooterLinks(previousPage, currentPage.getUrl(), bookmarkToken, previousPage.getUsedToken());
                             }
 
                             previousPage = currentPage;
