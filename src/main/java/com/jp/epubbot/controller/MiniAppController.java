@@ -12,6 +12,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/miniapp")
 @RequiredArgsConstructor
+@CrossOrigin
 public class MiniAppController {
 
     private final BookmarkService bookmarkService;
