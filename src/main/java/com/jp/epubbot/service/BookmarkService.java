@@ -132,7 +132,6 @@ public class BookmarkService {
         List<Map<String, String>> books = new ArrayList<>();
         AtomicInteger index = new AtomicInteger(1);
 
-        // 简单去重 (如果 SQL 没过滤干净) 并转换为 Map
         Set<String> processedBooks = new TreeSet<>();
 
         for (BookmarkToken t : tokens) {

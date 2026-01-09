@@ -47,6 +47,7 @@ public class EpubService {
         int currentLength = 0;
         int pageCounter = 1;
         TelegraphService.PageResult previousPage = null;
+        String previousBookmarkToken = null;
 
         Map<String, String> uploadedImagesCache = new HashMap<>();
 
@@ -78,10 +79,11 @@ public class EpubService {
                             pageUrls.add(currentPage.getUrl());
                             String bookmarkToken = bookmarkService.createBookmarkToken(finalTitle, pageTitle, currentPage.getUrl());
                             if (previousPage != null) {
-                                appendFooterLinks(previousPage, currentPage.getUrl(), bookmarkToken, previousPage.getUsedToken());
+                                appendFooterLinks(previousPage, currentPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
                             }
 
                             previousPage = currentPage;
+                            previousBookmarkToken = bookmarkToken;
                         }
                         currentBuffer = new ArrayList<>();
                         currentLength = 0;
@@ -100,8 +102,7 @@ public class EpubService {
             if (lastPage != null) {
                 pageUrls.add(lastPage.getUrl());
                 if (previousPage != null) {
-                    String prevToken = bookmarkService.createBookmarkToken(finalTitle, previousPage.getTitle(), previousPage.getUrl());
-                    appendFooterLinks(previousPage, lastPage.getUrl(), prevToken, previousPage.getUsedToken());
+                    appendFooterLinks(previousPage, lastPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
                 }
                 String lastToken = bookmarkService.createBookmarkToken(finalTitle, pageTitle, lastPage.getUrl());
                 appendFooterLinks(lastPage, null, lastToken, lastPage.getUsedToken());

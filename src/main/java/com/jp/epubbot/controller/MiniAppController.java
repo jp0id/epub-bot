@@ -70,11 +70,9 @@ public class MiniAppController {
             int totalCount = allBooksData.size();
             int totalPages = (int) Math.ceil((double) totalCount / size);
 
-            // Validate page number
             if (page < 0) page = 0;
             if (page >= totalPages && totalPages > 0) page = totalPages - 1;
 
-            // Calculate pagination bounds
             int fromIndex = page * size;
             int toIndex = Math.min(fromIndex + size, totalCount);
 
@@ -119,7 +117,6 @@ public class MiniAppController {
 
             List<BookmarkService.BookmarkInfo> allBookmarks = bookmarkService.getUserBookmarks(userId);
 
-            // Group bookmarks by book name
             Map<String, List<BookmarkService.BookmarkInfo>> bookGroups = new TreeMap<>();
             for (BookmarkService.BookmarkInfo bookmark : allBookmarks) {
                 String bookName = bookmark.getBookName();
@@ -127,9 +124,7 @@ public class MiniAppController {
                 bookGroups.computeIfAbsent(bookName, k -> new ArrayList<>()).add(bookmark);
             }
 
-            // Calculate total bookmarks count
             int totalBookmarks = allBookmarks.size();
-            // For pagination, we need to count by groups to keep groups intact
             List<Map<String, Object>> allGroups = new ArrayList<>();
             for (Map.Entry<String, List<BookmarkService.BookmarkInfo>> entry : bookGroups.entrySet()) {
                 Map<String, Object> group = new TreeMap<>();
@@ -148,7 +143,6 @@ public class MiniAppController {
                 allGroups.add(group);
             }
 
-            // Calculate pagination for groups (keeping groups intact)
             int currentBookmarkCount = 0;
             int currentPage = 0;
             int startGroupIndex = 0;
@@ -159,21 +153,17 @@ public class MiniAppController {
                 Map<String, Object> group = allGroups.get(i);
                 int groupBookmarkCount = (int) group.get("count");
 
-                // If adding this group would exceed page size and we already have some bookmarks on this page
                 if (currentBookmarkCount + groupBookmarkCount > size && currentBookmarkCount > 0) {
-                    // End current page
                     pageMap.put(currentPage, Map.of(
                             "startGroup", startGroupIndex,
                             "endGroup", i - 1
                     ));
-                    // Start new page
                     currentPage++;
                     currentBookmarkCount = 0;
                     startGroupIndex = i;
                 }
 
                 currentBookmarkCount += groupBookmarkCount;
-                // If exactly filled the page
                 if (currentBookmarkCount == size) {
                     pageMap.put(currentPage, Map.of(
                             "startGroup", startGroupIndex,
@@ -185,7 +175,6 @@ public class MiniAppController {
                 }
             }
 
-            // Handle last page
             if (currentBookmarkCount > 0 || startGroupIndex < allGroups.size()) {
                 if (startGroupIndex < allGroups.size()) {
                     pageMap.put(currentPage, Map.of(
@@ -197,11 +186,9 @@ public class MiniAppController {
 
             int totalPages = pageMap.size();
 
-            // Validate page number
             if (page < 0) page = 0;
             if (page >= totalPages && totalPages > 0) page = totalPages - 1;
 
-            // Get groups for current page
             List<Map<String, Object>> pageGroups = new ArrayList<>();
             int pageBookmarkCount = 0;
             if (totalPages > 0) {
