@@ -38,6 +38,8 @@ public class BookBot extends TelegramLongPollingBot {
     private final Set<Long> processingUsers = ConcurrentHashMap.newKeySet();
     private List<String> admin = null;
 
+    private final String baseUrl;
+
     public BookBot(DefaultBotOptions options, String botToken, String botUsername,
                    EpubService epubService, BookmarkService bookmarkService, String adminList, String webappUrl) {
         super(options, botToken);
@@ -53,7 +55,7 @@ public class BookBot extends TelegramLongPollingBot {
             User me = execute(new GetMe());
 //            this.setBotCommands();
             this.setWebAppButton();
-            String baseUrl = options.getBaseUrl();
+            this.baseUrl = options.getBaseUrl();
             log.info("✅ Bot 启动成功: {}, baseUrl: [{}], webappUrl: [{}]", me.getFirstName(), baseUrl, webappUrl);
         } catch (TelegramApiException e) {
             throw new RuntimeException("Bot 连接失败", e);
@@ -164,7 +166,14 @@ public class BookBot extends TelegramLongPollingBot {
                 org.telegram.telegrambots.meta.api.methods.GetFile getFile = new org.telegram.telegrambots.meta.api.methods.GetFile();
                 getFile.setFileId(doc.getFileId());
                 org.telegram.telegrambots.meta.api.objects.File file = execute(getFile);
-                String fileUrl = file.getFileUrl(getBotToken());
+                String defaultUrl = file.getFileUrl(getBotToken());
+
+                String fileUrl;
+                if (baseUrl.equals("https://api.telegram.org")) {
+                    fileUrl = defaultUrl;
+                } else {
+                    fileUrl = defaultUrl.replace("https://api.telegram.org", baseUrl);
+                }
 
                 try (InputStream in = new URL(fileUrl).openStream()) {
                     List<String> links = epubService.processEpub(in, doc.getFileName());
