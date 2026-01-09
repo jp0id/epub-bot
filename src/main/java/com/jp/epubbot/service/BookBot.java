@@ -51,7 +51,7 @@ public class BookBot extends TelegramLongPollingBot {
 
         try {
             User me = execute(new GetMe());
-            this.setBotCommands();
+//            this.setBotCommands();
             this.setWebAppButton();
             String baseUrl = options.getBaseUrl();
             log.info("✅ Bot 启动成功: {}, baseUrl: [{}], webappUrl: [{}]", me.getFirstName(), baseUrl, webappUrl);

@@ -15,3 +15,15 @@ telegraph:
 
 app:
   chars-per-page: 3000
+
+spring:
+  datasource:
+    url: jdbc:sqlite:data/epubbot.db
+    driver-class-name: org.sqlite.JDBC
+    username: sa
+    password:
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false

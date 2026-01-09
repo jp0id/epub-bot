@@ -1,334 +1,307 @@
 package com.jp.epubbot.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jp.epubbot.entity.BookmarkToken;
+import com.jp.epubbot.entity.ReadingPosition;
+import com.jp.epubbot.entity.UserBookmark;
+import com.jp.epubbot.repository.BookmarkTokenRepository;
+import com.jp.epubbot.repository.ReadingPositionRepository;
+import com.jp.epubbot.repository.UserBookmarkRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class BookmarkService {
 
     private static final String DATA_DIR = "data";
-    private static final String BOOKMARK_FILE = DATA_DIR + "/bookmarks.json";
+    private static final String OLD_BOOKMARK_FILE = DATA_DIR + "/bookmarks.json";
+    private static final String BACKUP_BOOKMARK_FILE = DATA_DIR + "/bookmarks.json.bak";
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
-    private final Map<String, BookmarkInfo> tokenMap = new ConcurrentHashMap<>();
+    private final BookmarkTokenRepository tokenRepo;
+    private final UserBookmarkRepository bookmarkRepo;
+    private final ReadingPositionRepository positionRepo;
 
-    private final Map<Long, List<BookmarkInfo>> userBookmarks = new ConcurrentHashMap<>();
-
-    private final Map<Long, Map<String, ReadingPosition>> userReadingPositions = new ConcurrentHashMap<>();
-
+    // --- DTOs 用于前后端交互 (保持原有的 DTO 结构不变) ---
     @Data
     public static class BookmarkInfo {
         private String bookName;
         private String chapterTitle;
         private String url;
+
+        public BookmarkInfo(String bookName, String chapterTitle, String url) {
+            this.bookName = bookName;
+            this.chapterTitle = chapterTitle;
+            this.url = url;
+        }
     }
 
+    // --- 旧数据结构类，仅用于迁移 ---
     @Data
-    public static class ReadingPosition {
-        private String bookName;
-        private String chapterTitle;
-        private String url;
-        private String position; // 可以是页码、位置标识等
-        private Double progress; // 阅读进度百分比，0-100
-        private Long timestamp; // 最后更新时间戳
-    }
-
-    @Data
-    public static class BookmarkData {
+    public static class LegacyBookmarkData {
         private Map<String, BookmarkInfo> tokenMap;
         private Map<Long, List<BookmarkInfo>> userBookmarks;
         private Map<Long, Map<String, ReadingPosition>> userReadingPositions;
     }
 
     @PostConstruct
-    public void init() {
+    @Transactional
+    public void initAndMigrate() {
         File dir = new File(DATA_DIR);
         if (!dir.exists()) dir.mkdirs();
 
-        File file = new File(BOOKMARK_FILE);
-        if (file.exists()) {
-            try {
-                BookmarkData data = objectMapper.readValue(file, BookmarkData.class);
-                if (data.getTokenMap() != null) {
-                    this.tokenMap.putAll(data.getTokenMap());
-                }
-                if (data.getUserBookmarks() != null) {
-                    this.userBookmarks.putAll(data.getUserBookmarks());
-                }
-                if (data.getUserReadingPositions() != null) {
-                    this.userReadingPositions.putAll(data.getUserReadingPositions());
-                }
-                log.info("📂 已加载书签数据: {} 个用户, {} 个活跃链接, {} 个阅读位置记录。", userBookmarks.size(), tokenMap.size(), userReadingPositions.size());
-            } catch (IOException e) {
-                log.error("加载书签文件失败", e);
+        File jsonFile = new File(OLD_BOOKMARK_FILE);
+        if (jsonFile.exists()) {
+            long dbCount = tokenRepo.count();
+            if (dbCount == 0) {
+                log.info("📢 检测到旧版 JSON 数据且数据库为空，开始迁移数据...");
+                migrateFromJson(jsonFile);
+            } else {
+                log.info("ℹ️ 检测到 JSON 文件，但数据库已有数据，跳过迁移。");
             }
         }
     }
 
-    private synchronized void saveData() {
+    private void migrateFromJson(File file) {
         try {
-            BookmarkData data = new BookmarkData();
-            data.setTokenMap(this.tokenMap);
-            data.setUserBookmarks(this.userBookmarks);
-            data.setUserReadingPositions(this.userReadingPositions);
+            LegacyBookmarkData data = objectMapper.readValue(file, LegacyBookmarkData.class);
 
-            File file = new File(BOOKMARK_FILE);
-            objectMapper.writeValue(file, data);
+            // 1. 迁移 Tokens
+            if (data.getTokenMap() != null && !data.getTokenMap().isEmpty()) {
+                List<BookmarkToken> tokens = new ArrayList<>();
+                data.getTokenMap().forEach((tokenStr, info) -> {
+                    BookmarkToken t = new BookmarkToken();
+                    t.setToken(tokenStr);
+                    t.setBookName(info.getBookName());
+                    t.setChapterTitle(info.getChapterTitle());
+                    t.setUrl(info.getUrl());
+                    tokens.add(t);
+                });
+                tokenRepo.saveAll(tokens);
+                log.info("✅ 迁移了 {} 个书籍链接 Token", tokens.size());
+            }
+
+            // 2. 迁移用户书签
+            if (data.getUserBookmarks() != null && !data.getUserBookmarks().isEmpty()) {
+                List<UserBookmark> bookmarks = new ArrayList<>();
+                data.getUserBookmarks().forEach((userId, list) -> {
+                    for (BookmarkInfo info : list) {
+                        UserBookmark ub = new UserBookmark();
+                        ub.setUserId(userId);
+                        ub.setBookName(info.getBookName());
+                        ub.setChapterTitle(info.getChapterTitle());
+                        ub.setUrl(info.getUrl());
+                        bookmarks.add(ub);
+                    }
+                });
+                bookmarkRepo.saveAll(bookmarks);
+                log.info("✅ 迁移了 {} 个用户书签", bookmarks.size());
+            }
+
+            // 3. 迁移阅读进度
+            if (data.getUserReadingPositions() != null && !data.getUserReadingPositions().isEmpty()) {
+                List<ReadingPosition> positions = new ArrayList<>();
+                data.getUserReadingPositions().forEach((userId, map) -> {
+                    map.values().forEach(oldPos -> {
+                        // 注意：这里直接使用了 Entity 类，因为字段名和旧 JSON 结构大概率兼容
+                        // 如果旧 JSON 里的 ReadingPosition 是内部类，这里 Jackson 反序列化时是兼容的
+                        oldPos.setUserId(userId); // 确保 userId 被设置
+                        positions.add(oldPos);
+                    });
+                });
+                positionRepo.saveAll(positions);
+                log.info("✅ 迁移了 {} 个阅读进度", positions.size());
+            }
+
+            // 重命名文件，避免下次重复检查
+            if (file.renameTo(new File(BACKUP_BOOKMARK_FILE))) {
+                log.info("🎉 迁移完成，旧数据文件已重命名为 .bak");
+            }
+
         } catch (IOException e) {
-            log.error("保存书签数据失败", e);
+            log.error("❌ 数据迁移失败", e);
         }
     }
 
     public String createBookmarkToken(String bookName, String chapterTitle, String url) {
-        String token = "bm_" + UUID.randomUUID().toString().substring(0, 8);
-        BookmarkInfo info = new BookmarkInfo();
-        info.setBookName(bookName);
-        info.setChapterTitle(chapterTitle);
-        info.setUrl(url);
+        String tokenStr = "bm_" + UUID.randomUUID().toString().substring(0, 8);
 
-        tokenMap.put(token, info);
-        saveData();
-        return token;
+        BookmarkToken token = new BookmarkToken();
+        token.setToken(tokenStr);
+        token.setBookName(bookName);
+        token.setChapterTitle(chapterTitle);
+        token.setUrl(url);
+
+        tokenRepo.save(token);
+        return tokenStr;
     }
 
-    public BookmarkInfo getBookmarkByToken(String token) {
-        return tokenMap.get(token);
+    public BookmarkInfo getBookmarkByToken(String tokenStr) {
+        return tokenRepo.findById(tokenStr)
+                .map(t -> new BookmarkInfo(t.getBookName(), t.getChapterTitle(), t.getUrl()))
+                .orElse(null);
     }
 
     public void saveBookmarkForUser(Long userId, BookmarkInfo info) {
-        userBookmarks.computeIfAbsent(userId, k -> new ArrayList<>()).add(info);
-        saveData();
+        UserBookmark bookmark = new UserBookmark();
+        bookmark.setUserId(userId);
+        bookmark.setBookName(info.getBookName());
+        bookmark.setChapterTitle(info.getChapterTitle());
+        bookmark.setUrl(info.getUrl());
+        bookmarkRepo.save(bookmark);
     }
 
     public List<BookmarkInfo> getUserBookmarks(Long userId) {
-        return userBookmarks.getOrDefault(userId, Collections.emptyList());
+        return bookmarkRepo.findByUserId(userId).stream()
+                .map(b -> new BookmarkInfo(b.getBookName(), b.getChapterTitle(), b.getUrl()))
+                .collect(Collectors.toList());
     }
 
+    @Transactional
     public void clearBookmarks(Long userId) {
-        userBookmarks.remove(userId);
-        saveData();
+        bookmarkRepo.deleteByUserId(userId);
     }
 
+    @Transactional
     public boolean deleteBookmarkForUser(Long userId, String url) {
-        List<BookmarkInfo> bookmarks = userBookmarks.get(userId);
-        if (bookmarks == null) {
+        try {
+            bookmarkRepo.deleteByUserIdAndUrl(userId, url);
+            return true;
+        } catch (Exception e) {
+            log.error("删除书签失败", e);
             return false;
         }
-        boolean removed = bookmarks.removeIf(info -> url.equals(info.getUrl()));
-        if (removed) {
-            saveData();
-        }
-        return removed;
     }
 
+    // 对应 /list 命令
     public String findAllBooks() {
-        Map<String, String> booksInfo = new TreeMap<>();
-        this.tokenMap.values().stream()
-                .filter(info -> {
-                    String title = info.getChapterTitle();
-                    String name = info.getBookName();
-                    return title != null && name != null
-                           && title.contains(name)
-                           && title.contains("(1)");
-                })
-                .forEach(info -> booksInfo.put(info.getBookName(), info.getUrl()));
+        List<BookmarkToken> books = tokenRepo.findAllFirstChapters();
 
         StringBuilder sb = new StringBuilder("🔖 **书籍列表:**\n\n");
         AtomicInteger index = new AtomicInteger(1);
-        booksInfo.forEach((bookName, url) ->
-                sb.append(index.getAndIncrement())
-                        .append(". [").append(bookName).append("](").append(url).append(")\n")
-        );
+
+        // 按书名排序
+        books.stream()
+                .sorted(Comparator.comparing(BookmarkToken::getBookName))
+                .forEach(book ->
+                        sb.append(index.getAndIncrement())
+                                .append(". [").append(book.getBookName()).append("](").append(book.getUrl()).append(")\n")
+                );
+
+        if (books.isEmpty()) {
+            return "暂无书籍数据。";
+        }
         return sb.toString();
     }
 
-    public List<Map<String, String>> getAllBooksStructured() {
-        return getAllBooksStructuredWithSearch(null);
-    }
-
+    // 对应 MiniApp 的 getAllBooksStructured
     public List<Map<String, String>> getAllBooksStructuredWithSearch(String searchTerm) {
-        Map<String, String> booksInfo = new TreeMap<>();
-        this.tokenMap.values().stream()
-                .filter(info -> {
-                    String title = info.getChapterTitle();
-                    String name = info.getBookName();
-                    return title != null && name != null
-                           && title.contains(name)
-                           && title.contains("(1)");
-                })
-                .filter(info -> {
-                    if (searchTerm == null || searchTerm.isBlank()) {
-                        return true;
-                    }
-                    String name = info.getBookName();
-                    return name.toLowerCase().contains(searchTerm.toLowerCase());
-                })
-                .forEach(info -> booksInfo.put(info.getBookName(), info.getUrl()));
+        List<BookmarkToken> tokens;
+
+        if (searchTerm != null && !searchTerm.isBlank()) {
+            tokens = tokenRepo.searchBooks(searchTerm);
+        } else {
+            tokens = tokenRepo.findAllFirstChapters();
+        }
 
         List<Map<String, String>> books = new ArrayList<>();
         AtomicInteger index = new AtomicInteger(1);
-        booksInfo.forEach((bookName, url) -> {
+
+        // 简单去重 (如果 SQL 没过滤干净) 并转换为 Map
+        Set<String> processedBooks = new TreeSet<>();
+
+        for (BookmarkToken t : tokens) {
+            if (processedBooks.contains(t.getBookName())) continue;
+
             Map<String, String> book = new HashMap<>();
             book.put("id", "book_" + index.getAndIncrement());
-            book.put("name", bookName);
-            book.put("url", url);
-            book.put("firstPageTitle", bookName + " (1)");
+            book.put("name", t.getBookName());
+            book.put("url", t.getUrl());
+            book.put("firstPageTitle", t.getChapterTitle());
             books.add(book);
-        });
+            processedBooks.add(t.getBookName());
+        }
 
         return books;
     }
 
-    /**
-     * 保存或更新阅读位置
-     */
+    // --- 阅读位置相关 ---
+
     public void saveReadingPosition(Long userId, ReadingPosition position) {
-        if (userId == null || position == null || position.getBookName() == null) {
-            log.warn("保存阅读位置失败: 参数不能为空");
-            return;
-        }
+        if (userId == null || position == null || position.getBookName() == null) return;
 
-        // 确保时间戳
-        if (position.getTimestamp() == null) {
-            position.setTimestamp(System.currentTimeMillis());
-        }
+        ReadingPosition existing = positionRepo.findByUserIdAndBookName(userId, position.getBookName())
+                .orElse(new ReadingPosition());
 
-        // 确保进度在0-100范围内
-        if (position.getProgress() != null) {
-            if (position.getProgress() < 0) position.setProgress(0.0);
-            if (position.getProgress() > 100) position.setProgress(100.0);
-        }
+        existing.setUserId(userId);
+        existing.setBookName(position.getBookName());
+        existing.setChapterTitle(position.getChapterTitle());
+        existing.setUrl(position.getUrl());
+        existing.setPosition(position.getPosition());
 
-        // 使用书籍名称作为key，如果书籍名称可能重复，可以考虑使用URL或其他唯一标识
-        String bookKey = position.getBookName();
-        userReadingPositions.computeIfAbsent(userId, k -> new ConcurrentHashMap<>())
-                           .put(bookKey, position);
-        saveData();
-        log.info("已保存用户 {} 的书籍 {} 阅读位置", userId, bookKey);
+        // 校验进度
+        double progress = position.getProgress() != null ? position.getProgress() : 0.0;
+        existing.setProgress(Math.max(0.0, Math.min(100.0, progress)));
+
+        existing.setTimestamp(System.currentTimeMillis());
+
+        positionRepo.save(existing);
     }
 
-    /**
-     * 获取用户的特定书籍阅读位置
-     */
     public ReadingPosition getReadingPosition(Long userId, String bookName) {
-        if (userId == null || bookName == null) {
-            return null;
-        }
-        Map<String, ReadingPosition> userPositions = userReadingPositions.get(userId);
-        if (userPositions == null) {
-            return null;
-        }
-        return userPositions.get(bookName);
+        return positionRepo.findByUserIdAndBookName(userId, bookName).orElse(null);
     }
 
-    /**
-     * 获取用户的所有阅读位置
-     */
     public List<ReadingPosition> getAllReadingPositions(Long userId) {
-        if (userId == null) {
-            return Collections.emptyList();
-        }
-        Map<String, ReadingPosition> userPositions = userReadingPositions.get(userId);
-        if (userPositions == null) {
-            return Collections.emptyList();
-        }
-        return new ArrayList<>(userPositions.values());
+        return positionRepo.findByUserId(userId);
     }
 
-    /**
-     * 删除用户的特定书籍阅读位置
-     */
+    @Transactional
     public boolean deleteReadingPosition(Long userId, String bookName) {
-        if (userId == null || bookName == null) {
+        try {
+            positionRepo.deleteByUserIdAndBookName(userId, bookName);
+            return true;
+        } catch (Exception e) {
             return false;
         }
-        Map<String, ReadingPosition> userPositions = userReadingPositions.get(userId);
-        if (userPositions == null) {
-            return false;
-        }
-        boolean removed = userPositions.remove(bookName) != null;
-        if (removed) {
-            // 如果用户没有其他阅读位置，移除整个用户条目
-            if (userPositions.isEmpty()) {
-                userReadingPositions.remove(userId);
-            }
-            saveData();
-            log.info("已删除用户 {} 的书籍 {} 阅读位置", userId, bookName);
-        }
-        return removed;
     }
 
-    /**
-     * 清除用户的所有阅读位置
-     */
+    @Transactional
     public void clearReadingPositions(Long userId) {
-        if (userId == null) {
-            return;
-        }
-        Map<String, ReadingPosition> removed = userReadingPositions.remove(userId);
-        if (removed != null && !removed.isEmpty()) {
-            saveData();
-            log.info("已清除用户 {} 的所有阅读位置，共 {} 条记录", userId, removed.size());
-        }
+        positionRepo.deleteByUserId(userId);
     }
 
-    /**
-     * 获取用户的阅读进度统计
-     */
     public Map<String, Object> getReadingStats(Long userId) {
         Map<String, Object> stats = new HashMap<>();
-        if (userId == null) {
-            return stats;
+        List<ReadingPosition> positions = positionRepo.findByUserIdOrderByTimestampDesc(userId);
+
+        stats.put("totalBooks", positions.size());
+        stats.put("recentlyRead", positions.stream().limit(5).collect(Collectors.toList()));
+
+        if (!positions.isEmpty()) {
+            double avg = positions.stream()
+                    .mapToDouble(p -> p.getProgress() != null ? p.getProgress() : 0.0)
+                    .average()
+                    .orElse(0.0);
+            stats.put("averageProgress", avg);
+            stats.put("booksWithProgress", positions.size());
+        } else {
+            stats.put("averageProgress", 0);
+            stats.put("booksWithProgress", 0);
         }
-
-        Map<String, ReadingPosition> userPositions = userReadingPositions.get(userId);
-        if (userPositions == null || userPositions.isEmpty()) {
-            stats.put("totalBooks", 0);
-            stats.put("recentlyRead", Collections.emptyList());
-            return stats;
-        }
-
-        int totalBooks = userPositions.size();
-        stats.put("totalBooks", totalBooks);
-
-        // 获取最近阅读的书籍（按时间戳排序）
-        List<ReadingPosition> recentPositions = new ArrayList<>(userPositions.values());
-        recentPositions.sort((a, b) -> {
-            Long timeA = a.getTimestamp() != null ? a.getTimestamp() : 0L;
-            Long timeB = b.getTimestamp() != null ? b.getTimestamp() : 0L;
-            return timeB.compareTo(timeA); // 降序排序
-        });
-
-        // 只取最近5本
-        int limit = Math.min(5, recentPositions.size());
-        stats.put("recentlyRead", recentPositions.subList(0, limit));
-
-        // 计算平均进度
-        double totalProgress = 0;
-        int countWithProgress = 0;
-        for (ReadingPosition pos : userPositions.values()) {
-            if (pos.getProgress() != null) {
-                totalProgress += pos.getProgress();
-                countWithProgress++;
-            }
-        }
-
-        if (countWithProgress > 0) {
-            stats.put("averageProgress", totalProgress / countWithProgress);
-            stats.put("booksWithProgress", countWithProgress);
-        }
-
         return stats;
     }
 }
