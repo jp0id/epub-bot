@@ -172,7 +172,16 @@ public class BookBot extends TelegramLongPollingBot {
                 if (baseUrl.equals("https://api.telegram.org")) {
                     fileUrl = defaultUrl;
                 } else {
-                    fileUrl = defaultUrl.replace("https://api.telegram.org", baseUrl);
+                    String relativePath = defaultUrl.replace("https://api.telegram.org", "");
+
+                    String cleanBaseUrl = baseUrl;
+                    if (cleanBaseUrl.endsWith("/bot")) {
+                        cleanBaseUrl = cleanBaseUrl.substring(0, cleanBaseUrl.length() - 4);
+                    }
+                    if (cleanBaseUrl.endsWith("/")) {
+                        cleanBaseUrl = cleanBaseUrl.substring(0, cleanBaseUrl.length() - 1);
+                    }
+                    fileUrl = cleanBaseUrl + relativePath;
                 }
 
                 try (InputStream in = new URL(fileUrl).openStream()) {
