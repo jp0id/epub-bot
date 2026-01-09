@@ -1,6 +1,5 @@
 package com.jp.epubbot.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jp.epubbot.entity.TelegraphAccount;
 import com.jp.epubbot.repository.TelegraphAccountRepository;
@@ -20,8 +19,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -35,10 +32,6 @@ public class TelegraphService {
     private String authorName;
 
     private final String initialToken;
-
-    private static final String DATA_DIR = "data";
-    private static final String OLD_TOKEN_FILE = DATA_DIR + "/telegraph_tokens.json";
-    private static final String BACKUP_TOKEN_FILE = DATA_DIR + "/telegraph_tokens.json.bak";
 
     private static final int WAIT_THRESHOLD_SECONDS = 30;
 
@@ -85,11 +78,6 @@ public class TelegraphService {
         }
         log.info("📂 从数据库加载了 {} 个 Telegraph Token。", accounts.size());
 
-        File file = new File(OLD_TOKEN_FILE);
-        if (file.exists()) {
-            migrateOldTokens(file);
-        }
-
         if (initialToken != null && !initialToken.isBlank() && !tokenPool.contains(initialToken)) {
             saveNewTokenToDb(initialToken);
             tokenPool.add(initialToken);
@@ -98,30 +86,6 @@ public class TelegraphService {
 
         if (!tokenPool.isEmpty()) {
             currentAccessToken = tokenPool.get(0);
-        }
-    }
-
-    /**
-     * 迁移旧 JSON 文件中的 Token 到数据库
-     */
-    private void migrateOldTokens(File file) {
-        try {
-            List<String> savedTokens = objectMapper.readValue(file, new TypeReference<List<String>>() {});
-            int count = 0;
-            for (String t : savedTokens) {
-                if (!tokenPool.contains(t)) {
-                    saveNewTokenToDb(t);
-                    tokenPool.add(t);
-                    count++;
-                }
-            }
-            log.info("🔄 从旧 JSON 文件迁移了 {} 个 Token", count);
-
-            if (file.renameTo(new File(BACKUP_TOKEN_FILE))) {
-                log.info("✅ 旧 Token 文件已备份为 .bak");
-            }
-        } catch (IOException e) {
-            log.error("❌ 迁移旧 Token 文件失败", e);
         }
     }
 
@@ -234,8 +198,7 @@ public class TelegraphService {
                     return map;
                 }
                 return null;
-            }
-            else targetTag = forceInline ? null : "p";
+            } else targetTag = forceInline ? null : "p";
 
             for (Node child : element.childNodes()) {
                 if (child instanceof TextNode) {
@@ -301,7 +264,12 @@ public class TelegraphService {
                     if (handleFloodWait(tokenToUse, (String) response.get("error"))) continue;
                     else return null;
                 }
-            } catch (Exception e) { try { Thread.sleep(1000); } catch (InterruptedException ignored) {} }
+            } catch (Exception e) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ignored) {
+                }
+            }
         }
         return null;
     }
@@ -318,7 +286,9 @@ public class TelegraphService {
             request.put("path", path);
             request.put("return_content", false);
             restTemplate.postForObject(url, request, Map.class);
-        } catch (Exception e) { log.error("EditPage failed", e); }
+        } catch (Exception e) {
+            log.error("EditPage failed", e);
+        }
     }
 
     private boolean handleFloodWait(String token, String errorMsg) {
@@ -327,7 +297,10 @@ public class TelegraphService {
             int waitSeconds = 5;
             if (matcher.find()) waitSeconds = Integer.parseInt(matcher.group(1));
             if (waitSeconds <= WAIT_THRESHOLD_SECONDS) {
-                try { Thread.sleep((waitSeconds + 1) * 1000L); } catch (InterruptedException ignored) {}
+                try {
+                    Thread.sleep((waitSeconds + 1) * 1000L);
+                } catch (InterruptedException ignored) {
+                }
             } else {
                 tokenCooldowns.put(token, System.currentTimeMillis() + (waitSeconds + 2) * 1000L);
             }

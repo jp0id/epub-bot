@@ -1,6 +1,5 @@
 package com.jp.epubbot.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jp.epubbot.entity.BookmarkToken;
 import com.jp.epubbot.entity.ReadingPosition;
 import com.jp.epubbot.entity.UserBookmark;
@@ -15,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -26,10 +24,6 @@ import java.util.stream.Collectors;
 public class BookmarkService {
 
     private static final String DATA_DIR = "data";
-    private static final String OLD_BOOKMARK_FILE = DATA_DIR + "/bookmarks.json";
-    private static final String BACKUP_BOOKMARK_FILE = DATA_DIR + "/bookmarks.json.bak";
-
-    private final ObjectMapper objectMapper;
 
     private final BookmarkTokenRepository tokenRepo;
     private final UserBookmarkRepository bookmarkRepo;
@@ -49,91 +43,11 @@ public class BookmarkService {
         }
     }
 
-    // --- 旧数据结构类，仅用于迁移 ---
-    @Data
-    public static class LegacyBookmarkData {
-        private Map<String, BookmarkInfo> tokenMap;
-        private Map<Long, List<BookmarkInfo>> userBookmarks;
-        private Map<Long, Map<String, ReadingPosition>> userReadingPositions;
-    }
-
     @PostConstruct
     @Transactional
     public void initAndMigrate() {
         File dir = new File(DATA_DIR);
         if (!dir.exists()) dir.mkdirs();
-
-        File jsonFile = new File(OLD_BOOKMARK_FILE);
-        if (jsonFile.exists()) {
-            long dbCount = tokenRepo.count();
-            if (dbCount == 0) {
-                log.info("📢 检测到旧版 JSON 数据且数据库为空，开始迁移数据...");
-                migrateFromJson(jsonFile);
-            } else {
-                log.info("ℹ️ 检测到 JSON 文件，但数据库已有数据，跳过迁移。");
-            }
-        }
-    }
-
-    private void migrateFromJson(File file) {
-        try {
-            LegacyBookmarkData data = objectMapper.readValue(file, LegacyBookmarkData.class);
-
-            // 1. 迁移 Tokens
-            if (data.getTokenMap() != null && !data.getTokenMap().isEmpty()) {
-                List<BookmarkToken> tokens = new ArrayList<>();
-                data.getTokenMap().forEach((tokenStr, info) -> {
-                    BookmarkToken t = new BookmarkToken();
-                    t.setToken(tokenStr);
-                    t.setBookName(info.getBookName());
-                    t.setChapterTitle(info.getChapterTitle());
-                    t.setUrl(info.getUrl());
-                    tokens.add(t);
-                });
-                tokenRepo.saveAll(tokens);
-                log.info("✅ 迁移了 {} 个书籍链接 Token", tokens.size());
-            }
-
-            // 2. 迁移用户书签
-            if (data.getUserBookmarks() != null && !data.getUserBookmarks().isEmpty()) {
-                List<UserBookmark> bookmarks = new ArrayList<>();
-                data.getUserBookmarks().forEach((userId, list) -> {
-                    for (BookmarkInfo info : list) {
-                        UserBookmark ub = new UserBookmark();
-                        ub.setUserId(userId);
-                        ub.setBookName(info.getBookName());
-                        ub.setChapterTitle(info.getChapterTitle());
-                        ub.setUrl(info.getUrl());
-                        bookmarks.add(ub);
-                    }
-                });
-                bookmarkRepo.saveAll(bookmarks);
-                log.info("✅ 迁移了 {} 个用户书签", bookmarks.size());
-            }
-
-            // 3. 迁移阅读进度
-            if (data.getUserReadingPositions() != null && !data.getUserReadingPositions().isEmpty()) {
-                List<ReadingPosition> positions = new ArrayList<>();
-                data.getUserReadingPositions().forEach((userId, map) -> {
-                    map.values().forEach(oldPos -> {
-                        // 注意：这里直接使用了 Entity 类，因为字段名和旧 JSON 结构大概率兼容
-                        // 如果旧 JSON 里的 ReadingPosition 是内部类，这里 Jackson 反序列化时是兼容的
-                        oldPos.setUserId(userId); // 确保 userId 被设置
-                        positions.add(oldPos);
-                    });
-                });
-                positionRepo.saveAll(positions);
-                log.info("✅ 迁移了 {} 个阅读进度", positions.size());
-            }
-
-            // 重命名文件，避免下次重复检查
-            if (file.renameTo(new File(BACKUP_BOOKMARK_FILE))) {
-                log.info("🎉 迁移完成，旧数据文件已重命名为 .bak");
-            }
-
-        } catch (IOException e) {
-            log.error("❌ 数据迁移失败", e);
-        }
     }
 
     public String createBookmarkToken(String bookName, String chapterTitle, String url) {
