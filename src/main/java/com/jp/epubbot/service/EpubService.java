@@ -135,29 +135,35 @@ public class EpubService {
         }
     }
 
+    // 替换原有的 handleImages
     private void handleImages(Document doc, Book book, String currentResourceHref, Map<String, String> cache) {
         Elements imgs = doc.select("img");
         if (imgs.isEmpty()) return;
 
-        log.info("正在处理章节图片，共 {} 张", imgs.size());
+        log.info("正在处理章节图片，共 {} 张，当前章节: {}", imgs.size(), currentResourceHref);
 
         for (Element img : imgs) {
             String src = img.attr("src");
-            if (src.isEmpty() || src.startsWith("http")) continue;
+            if (src.isEmpty() || src.startsWith("http") || src.startsWith("https")) continue;
 
             try {
-                String imageHref = resolveHref(currentResourceHref, src);
+                String imageHref = resolvePath(currentResourceHref, src);
 
                 if (cache.containsKey(imageHref)) {
                     img.attr("src", cache.get(imageHref));
+                    img.attr("style", "max-width: 100%;");
                     continue;
                 }
 
                 Resource imageRes = book.getResources().getByHref(imageHref);
+
                 if (imageRes == null) {
-                    String fileName = new File(src).getName();
-                    log.debug("未找到图片资源: {}", imageHref);
-                    img.remove();
+                    String decodedHref = java.net.URLDecoder.decode(imageHref, StandardCharsets.UTF_8);
+                    imageRes = book.getResources().getByHref(decodedHref);
+                }
+
+                if (imageRes == null) {
+                    log.warn("未找到图片资源: Original: {} -> Resolved: {}", src, imageHref);
                     continue;
                 }
 
@@ -168,14 +174,47 @@ public class EpubService {
                     cache.put(imageHref, remoteUrl);
                     img.attr("src", remoteUrl);
                     img.attr("style", "max-width: 100%;");
+                    log.debug("图片上传成功: {}", remoteUrl);
                 } else {
+                    log.error("图片上传失败: {}", imageHref);
                     img.remove();
                 }
 
             } catch (Exception e) {
                 log.warn("处理图片异常: {} - {}", src, e.getMessage());
-                img.remove();
             }
+        }
+    }
+
+    private String resolvePath(String basePath, String relativePath) {
+        try {
+            if (relativePath.contains("#")) {
+                relativePath = relativePath.substring(0, relativePath.indexOf("#"));
+            }
+
+            if (relativePath.startsWith("/")) {
+                return relativePath.substring(1);
+            }
+
+            String currentDir = "";
+            if (basePath.contains("/")) {
+                currentDir = basePath.substring(0, basePath.lastIndexOf("/") + 1);
+            }
+
+            String fullPath = currentDir + relativePath;
+
+            java.util.LinkedList<String> parts = new java.util.LinkedList<>();
+            for (String part : fullPath.split("/")) {
+                if (part.equals("..")) {
+                    if (!parts.isEmpty()) parts.removeLast();
+                } else if (!part.equals(".") && !part.isEmpty()) {
+                    parts.add(part);
+                }
+            }
+
+            return String.join("/", parts);
+        } catch (Exception e) {
+            return relativePath;
         }
     }
 
@@ -302,13 +341,26 @@ public class EpubService {
     private void flattenDom(Node node, List<Map<String, Object>> result) {
         if (node instanceof Element element) {
             String tagName = element.tagName().toLowerCase();
+
+            if (tagName.equals("img")) {
+                Map<String, Object> converted = telegraphService.convertNode(element, false);
+                if (converted != null) {
+                    result.add(converted);
+                }
+                return;
+            }
+
             if (isContentBlock(tagName)) {
                 Map<String, Object> converted = telegraphService.convertNode(element, false);
                 if (converted != null) result.add(converted);
                 return;
             }
+
             if (tagName.equals("br")) return;
-            for (Node child : element.childNodes()) flattenDom(child, result);
+
+            for (Node child : element.childNodes()) {
+                flattenDom(child, result);
+            }
         } else if (node instanceof TextNode) {
             String text = telegraphService.cleanText(((TextNode) node).text()).trim();
             if (!text.isEmpty()) {
@@ -319,7 +371,7 @@ public class EpubService {
     }
 
     private boolean isContentBlock(String tagName) {
-        return List.of("p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "ul", "ol", "pre", "figure", "hr").contains(tagName);
+        return List.of("p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "ul", "ol", "pre", "figure", "hr", "img").contains(tagName);
     }
 
     private int estimateLength(Map<String, Object> node) {
