@@ -71,6 +71,7 @@ public class EpubService {
                 for (Map<String, Object> node : nodes) {
                     currentBuffer.add(node);
                     currentLength += estimateLength(node);
+                    log.info("current length: {}", currentLength);
 
                     if (currentLength >= charsPerPage) {
                         String pageTitle = finalTitle + " (" + pageCounter + ")";
@@ -327,6 +328,7 @@ public class EpubService {
     private int estimateLength(Map<String, Object> node) {
         String tag = (String) node.get("tag");
         if ("img".equalsIgnoreCase(tag)) {
+            log.info("has img");
             return IMAGE_WEIGHT;
         }
         int len = 0;
