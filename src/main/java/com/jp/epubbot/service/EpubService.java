@@ -47,6 +47,8 @@ public class EpubService {
         int currentLength = 0;
         int pageCounter = 1;
         TelegraphService.PageResult previousPage = null;
+        List<Map<String, Object>> previousContent = null;
+
         String previousBookmarkToken = null;
 
         Map<String, String> uploadedImagesCache = new HashMap<>();
@@ -78,11 +80,13 @@ public class EpubService {
                         if (currentPage != null) {
                             pageUrls.add(currentPage.getUrl());
                             String bookmarkToken = bookmarkService.createBookmarkToken(finalTitle, pageTitle, currentPage.getUrl());
+
                             if (previousPage != null) {
-                                appendFooterLinks(previousPage, currentPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
+                                appendFooterLinks(previousPage, previousContent, currentPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
                             }
 
                             previousPage = currentPage;
+                            previousContent = currentBuffer;
                             previousBookmarkToken = bookmarkToken;
                         }
                         currentBuffer = new ArrayList<>();
@@ -95,17 +99,17 @@ public class EpubService {
             }
         }
 
-        // 最后一页
         if (!currentBuffer.isEmpty()) {
             String pageTitle = finalTitle + " (" + pageCounter + ") - End";
             TelegraphService.PageResult lastPage = telegraphService.createPage(pageTitle, currentBuffer);
             if (lastPage != null) {
                 pageUrls.add(lastPage.getUrl());
                 if (previousPage != null) {
-                    appendFooterLinks(previousPage, lastPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
+                    appendFooterLinks(previousPage, previousContent, lastPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
                 }
+
                 String lastToken = bookmarkService.createBookmarkToken(finalTitle, pageTitle, lastPage.getUrl());
-                appendFooterLinks(lastPage, null, lastToken, lastPage.getUsedToken());
+                appendFooterLinks(lastPage, currentBuffer, null, lastToken, lastPage.getUsedToken());
             }
         }
 
@@ -300,9 +304,12 @@ public class EpubService {
         return text.matches("\\d+");
     }
 
-    private void appendFooterLinks(TelegraphService.PageResult pageToEdit, String nextUrl, String bookmarkToken, String tokenToUse) {
+    private void appendFooterLinks(TelegraphService.PageResult pageToEdit, List<Map<String, Object>> content, String nextUrl, String bookmarkToken, String tokenToUse) {
         try {
-            List<Map<String, Object>> content = pageToEdit.getContent();
+            if (content == null) {
+                log.warn("无法更新页脚，内容列表为空: {}", pageToEdit.getUrl());
+                return;
+            }
 
             Map<String, Object> hr = new HashMap<>();
             hr.put("tag", "hr");
@@ -331,10 +338,11 @@ public class EpubService {
             pWrapper.put("children", pChildren);
             content.add(pWrapper);
 
+            // 使用修改后的本地 content 列表调用 editPage
             telegraphService.editPage(pageToEdit.getPath(), pageToEdit.getTitle(), content, tokenToUse);
 
         } catch (Exception e) {
-            log.warn("更新页脚失败: {}", e.getMessage());
+            log.warn("更新页脚失败: {} - {}", pageToEdit.getUrl(), e.getMessage());
         }
     }
 
