@@ -148,13 +148,11 @@ public class TelegraphService {
 
         try {
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
             headers.add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-            headers.add("Referer", "https://telegra.ph/");
 
-            String fileExtension = contentType.toLowerCase().contains("png") ? "png" : "jpg";
-            String filename = "image." + fileExtension;
-            MediaType mediaType = fileExtension.equals("png") ? MediaType.IMAGE_PNG : MediaType.IMAGE_JPEG;
+            boolean isPng = contentType != null && contentType.toLowerCase().contains("png");
+            String filename = "image." + (isPng ? "png" : "jpg");
+            MediaType mediaType = isPng ? MediaType.IMAGE_PNG : MediaType.IMAGE_JPEG;
 
             ByteArrayResource resource = new ByteArrayResource(imageData) {
                 @Override
@@ -181,7 +179,7 @@ public class TelegraphService {
                 }
             }
         } catch (Exception e) {
-            log.warn("图片上传失败: {}", e.toString());
+            log.error("图片上传失败: {}", e.toString());
         }
         return null;
     }
