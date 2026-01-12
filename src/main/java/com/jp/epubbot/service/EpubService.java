@@ -139,7 +139,7 @@ public class EpubService {
         Elements imgs = doc.select("img");
         if (imgs.isEmpty()) return;
 
-        log.debug("正在处理章节图片，共 {} 张", imgs.size());
+        log.info("正在处理章节图片，共 {} 张", imgs.size());
 
         for (Element img : imgs) {
             String src = img.attr("src");
