@@ -12,6 +12,7 @@ telegram:
 telegraph:
   access-token: ""
   author-name: "EpubReaderBot"
+  catto-pic-token: ""
 
 app:
   chars-per-page: 3000

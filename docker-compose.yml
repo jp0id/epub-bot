@@ -11,9 +11,14 @@ services:
       - TELEGRAM_BOT_TOKEN=你的Token
       - TELEGRAM_BOT_USERNAME=你的BotName
       - TELEGRAPH_AUTHOR_NAME=EpubReader
+      - TELEGRAPH_CATTO_PIC_TOKEN=
       - APP_CHARS_PER_PAGE=4000
       - TELEGRAM_BOT_ADMINS=201728830,201728830
       - TELEGRAM_BOT_BASE=https://api.telegram.org
       - TELEGRAM_BOT_WEBAPP_URL=https://xxx.xx.com/app
     volumes:
       - ./data:/app/data
+    blkio_config:
+      device_read_iops: # 限制读取次数 (Read IOPS)
+        - path: /dev/vda   # ⚠️ 必须修改为你宿主机的实际磁盘设备 (如 /dev/vda)
+          rate: 200

@@ -10,15 +10,11 @@ import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -30,6 +26,9 @@ public class TelegraphService {
 
     @Value("${telegraph.author-name:EpubReaderBot}")
     private String authorName;
+
+    @Value("${telegraph.catto-pic-token:}")
+    private String picToken;
 
     private final String initialToken;
 
@@ -76,7 +75,7 @@ public class TelegraphService {
                 tokenPool.add(account.getAccessToken());
             }
         }
-        log.info("📂 从数据库加载了 {} 个 Telegraph Token。", accounts.size());
+        log.info("📂 从数据库加载了 {} 个 Telegraph Token。picToken: [{}]", accounts.size(), this.picToken);
 
         if (initialToken != null && !initialToken.isBlank() && !tokenPool.contains(initialToken)) {
             saveNewTokenToDb(initialToken);
@@ -140,48 +139,103 @@ public class TelegraphService {
         return null;
     }
 
-    @SuppressWarnings("rawtypes")
-    public String uploadImage(byte[] imageData, String contentType) {
+    public String uploadImageNative(byte[] imageData, String contentType) {
         if (imageData == null || imageData.length == 0) return null;
 
-        String uploadUrl = "https://telegra.ph/upload";
+        String uploadUrl = "https://cattopic.8void.sbs/api/upload/single";
+        String boundary = "----CustomUploadBoundary" + System.currentTimeMillis();
+        String lineFeed = "\r\n";
 
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            URL url = new URL(uploadUrl);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setDoOutput(true);
+            conn.setDoInput(true);
+            conn.setUseCaches(false);
+            conn.setRequestMethod("POST");
 
-            boolean isPng = contentType != null && contentType.toLowerCase().contains("png");
-            String filename = "image." + (isPng ? "png" : "jpg");
-            MediaType mediaType = isPng ? MediaType.IMAGE_PNG : MediaType.IMAGE_JPEG;
+            conn.setRequestProperty("User-Agent", "EpubBot/1.0");
+            conn.setRequestProperty("Authorization", "Bearer " + picToken);
+            conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
 
-            ByteArrayResource resource = new ByteArrayResource(imageData) {
-                @Override
-                public String getFilename() {
-                    return filename;
+            try (java.io.OutputStream outputStream = conn.getOutputStream()) {
+                String extension = contentType.contains("png") ? "png" : "jpg";
+                String fileName = "image." + extension;
+                String mimeType = contentType.contains("png") ? "image/png" : "image/jpeg";
+
+                StringBuilder sb = new StringBuilder();
+                sb.append("--").append(boundary).append(lineFeed);
+                sb.append("Content-Disposition: form-data; name=\"file\"; filename=\"").append(fileName).append("\"").append(lineFeed);
+                sb.append("Content-Type: ").append(mimeType).append(lineFeed);
+                sb.append(lineFeed);
+
+                outputStream.write(sb.toString().getBytes(StandardCharsets.UTF_8));
+                outputStream.write(imageData);
+                outputStream.write(lineFeed.getBytes(StandardCharsets.UTF_8));
+
+                String endBoundary = "--" + boundary + "--" + lineFeed;
+                outputStream.write(endBoundary.getBytes(StandardCharsets.UTF_8));
+                outputStream.flush();
+            }
+
+            int status = conn.getResponseCode();
+            if (status == 200) {
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        response.append(line);
+                    }
+                    String json = response.toString();
+
+                    return extractUrlFromJson(json);
                 }
-            };
-
-            HttpHeaders partHeaders = new HttpHeaders();
-            partHeaders.setContentType(mediaType);
-            HttpEntity<ByteArrayResource> filePart = new HttpEntity<>(resource, partHeaders);
-
-            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("file", filePart);
-
-            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-            List response = restTemplate.postForObject(uploadUrl, requestEntity, List.class);
-
-            if (response != null && !response.isEmpty()) {
-                Map result = (Map) response.get(0);
-                String src = (String) result.get("src");
-                if (src != null) {
-                    return "https://telegra.ph" + src;
+            } else {
+                try (java.io.InputStream errorStream = conn.getErrorStream()) {
+                    if (errorStream != null) {
+                        String errorResp = new String(errorStream.readAllBytes(), StandardCharsets.UTF_8);
+                        log.error("图床上传失败 ({}): {}", status, errorResp);
+                    } else {
+                        log.error("图床上传失败 ({})", status);
+                    }
                 }
             }
+
         } catch (Exception e) {
-            log.error("图片上传失败: {}", e.toString());
+            log.error("上传异常", e);
         }
         return null;
+    }
+
+    /**
+     * {"success":true,"result":{"id":"20260112-e06c0db6","status":"success","urls":{"original":"https://r2.8void.sbs/original/landscape/20260112-e06c0db6.png","webp":"https://r2.8void.sbs/landscape/webp/20260112-e06c0db6.webp","avif":"https://r2.8void.sbs/landscape/avif/20260112-e06c0db6.avif"},"orientation":"landscape","tags":[],"sizes":{"original":51792,"webp":18398,"avif":22547},"format":"png"}}
+     */
+    private String extractUrlFromJson(String json) {
+        try {
+            if (!json.contains("\"success\":true") && !json.contains("\"success\": true")) {
+                log.warn("图床返回未成功: {}", json);
+                return null;
+            }
+
+            int urlsIndex = json.indexOf("\"urls\"");
+            if (urlsIndex == -1) return null;
+
+            int originalKeyIndex = json.indexOf("\"original\"", urlsIndex);
+            if (originalKeyIndex == -1) return null;
+
+            int startQuote = json.indexOf("\"", originalKeyIndex + 10);
+            if (startQuote == -1) return null;
+
+            int endQuote = json.indexOf("\"", startQuote + 1);
+            if (endQuote == -1) return null;
+
+            String url = json.substring(startQuote + 1, endQuote);
+
+            return url.replace("\\/", "/");
+        } catch (Exception e) {
+            log.error("JSON解析失败: {}", json, e);
+            return null;
+        }
     }
 
     private static final Set<String> BLOCK_TAGS = Set.of("p", "h3", "h4", "blockquote", "aside", "figure", "ul", "ol", "hr");

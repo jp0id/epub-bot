@@ -162,7 +162,7 @@ public class EpubService {
                 }
 
                 String contentType = imageRes.getMediaType() != null ? imageRes.getMediaType().toString() : "image/jpeg";
-                String remoteUrl = telegraphService.uploadImage(imageRes.getData(), contentType);
+                String remoteUrl = telegraphService.uploadImageNative(imageRes.getData(), contentType);
 
                 if (remoteUrl != null) {
                     cache.put(imageHref, remoteUrl);
