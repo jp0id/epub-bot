@@ -71,7 +71,6 @@ public class EpubService {
                 for (Map<String, Object> node : nodes) {
                     currentBuffer.add(node);
                     currentLength += estimateLength(node);
-                    log.info("current length: {}", currentLength);
 
                     if (currentLength >= charsPerPage) {
                         String pageTitle = finalTitle + " (" + pageCounter + ")";
