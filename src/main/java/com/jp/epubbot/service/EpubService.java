@@ -59,7 +59,7 @@ public class EpubService {
                 Document doc = Jsoup.parse(html);
                 Element body = doc.body();
 
-                handleImages(doc, book, res.getHref(), uploadedImagesCache);
+                boolean hasImg = handleImages(doc, book, res.getHref(), uploadedImagesCache);
 
                 handleInlineNotes(body);
 
@@ -70,7 +70,7 @@ public class EpubService {
                     currentBuffer.add(node);
                     currentLength += estimateLength(node);
 
-                    if (currentLength >= charsPerPage) {
+                    if (currentLength >= charsPerPage || hasImg) {
                         String pageTitle = finalTitle + " (" + pageCounter + ")";
 
                         TelegraphService.PageResult currentPage = telegraphService.createPage(pageTitle, currentBuffer);
@@ -135,9 +135,9 @@ public class EpubService {
         }
     }
 
-    private void handleImages(Document doc, Book book, String currentResourceHref, Map<String, String> cache) {
+    private boolean handleImages(Document doc, Book book, String currentResourceHref, Map<String, String> cache) {
         Elements imgs = doc.select("img");
-        if (imgs.isEmpty()) return;
+        if (imgs.isEmpty()) return false;
 
         log.info("正在处理章节图片，共 {} 张", imgs.size());
 
@@ -177,6 +177,7 @@ public class EpubService {
                 img.remove();
             }
         }
+        return true;
     }
 
     /**
