@@ -36,6 +36,8 @@ public class EpubService {
     @Value("${telegram.bot.username}")
     private String botUsername;
 
+    private static final int IMAGE_WEIGHT = 700;
+
     public List<String> processEpub(InputStream epubStream, String bookTitle) throws Exception {
         EpubReader epubReader = new EpubReader();
         Book book = epubReader.readEpub(epubStream);
@@ -59,7 +61,7 @@ public class EpubService {
                 Document doc = Jsoup.parse(html);
                 Element body = doc.body();
 
-                boolean hasImg = handleImages(doc, book, res.getHref(), uploadedImagesCache);
+                handleImages(doc, book, res.getHref(), uploadedImagesCache);
 
                 handleInlineNotes(body);
 
@@ -70,7 +72,7 @@ public class EpubService {
                     currentBuffer.add(node);
                     currentLength += estimateLength(node);
 
-                    if (currentLength >= charsPerPage || hasImg) {
+                    if (currentLength >= charsPerPage) {
                         String pageTitle = finalTitle + " (" + pageCounter + ")";
 
                         TelegraphService.PageResult currentPage = telegraphService.createPage(pageTitle, currentBuffer);
@@ -135,9 +137,9 @@ public class EpubService {
         }
     }
 
-    private boolean handleImages(Document doc, Book book, String currentResourceHref, Map<String, String> cache) {
+    private void handleImages(Document doc, Book book, String currentResourceHref, Map<String, String> cache) {
         Elements imgs = doc.select("img");
-        if (imgs.isEmpty()) return false;
+        if (imgs.isEmpty()) return;
 
         log.info("正在处理章节图片，共 {} 张", imgs.size());
 
@@ -177,7 +179,6 @@ public class EpubService {
                 img.remove();
             }
         }
-        return true;
     }
 
     /**
@@ -324,6 +325,10 @@ public class EpubService {
     }
 
     private int estimateLength(Map<String, Object> node) {
+        String tag = (String) node.get("tag");
+        if ("img".equalsIgnoreCase(tag)) {
+            return IMAGE_WEIGHT;
+        }
         int len = 0;
         if (node.containsKey("children")) {
             List<?> children = (List<?>) node.get("children");
