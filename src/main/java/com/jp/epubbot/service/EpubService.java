@@ -47,8 +47,6 @@ public class EpubService {
         int currentLength = 0;
         int pageCounter = 1;
         TelegraphService.PageResult previousPage = null;
-        List<Map<String, Object>> previousContent = null;
-
         String previousBookmarkToken = null;
 
         Map<String, String> uploadedImagesCache = new HashMap<>();
@@ -80,13 +78,11 @@ public class EpubService {
                         if (currentPage != null) {
                             pageUrls.add(currentPage.getUrl());
                             String bookmarkToken = bookmarkService.createBookmarkToken(finalTitle, pageTitle, currentPage.getUrl());
-
                             if (previousPage != null) {
-                                appendFooterLinks(previousPage, previousContent, currentPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
+                                appendFooterLinks(previousPage, currentPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
                             }
 
                             previousPage = currentPage;
-                            previousContent = currentBuffer;
                             previousBookmarkToken = bookmarkToken;
                         }
                         currentBuffer = new ArrayList<>();
@@ -99,17 +95,17 @@ public class EpubService {
             }
         }
 
+        // 最后一页
         if (!currentBuffer.isEmpty()) {
             String pageTitle = finalTitle + " (" + pageCounter + ") - End";
             TelegraphService.PageResult lastPage = telegraphService.createPage(pageTitle, currentBuffer);
             if (lastPage != null) {
                 pageUrls.add(lastPage.getUrl());
                 if (previousPage != null) {
-                    appendFooterLinks(previousPage, previousContent, lastPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
+                    appendFooterLinks(previousPage, lastPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
                 }
-
                 String lastToken = bookmarkService.createBookmarkToken(finalTitle, pageTitle, lastPage.getUrl());
-                appendFooterLinks(lastPage, currentBuffer, null, lastToken, lastPage.getUsedToken());
+                appendFooterLinks(lastPage, null, lastToken, lastPage.getUsedToken());
             }
         }
 
@@ -139,35 +135,29 @@ public class EpubService {
         }
     }
 
-    // 替换原有的 handleImages
     private void handleImages(Document doc, Book book, String currentResourceHref, Map<String, String> cache) {
         Elements imgs = doc.select("img");
         if (imgs.isEmpty()) return;
 
-        log.info("正在处理章节图片，共 {} 张，当前章节: {}", imgs.size(), currentResourceHref);
+        log.info("正在处理章节图片，共 {} 张", imgs.size());
 
         for (Element img : imgs) {
             String src = img.attr("src");
-            if (src.isEmpty() || src.startsWith("http") || src.startsWith("https")) continue;
+            if (src.isEmpty() || src.startsWith("http")) continue;
 
             try {
-                String imageHref = resolvePath(currentResourceHref, src);
+                String imageHref = resolveHref(currentResourceHref, src);
 
                 if (cache.containsKey(imageHref)) {
                     img.attr("src", cache.get(imageHref));
-                    img.attr("style", "max-width: 100%;");
                     continue;
                 }
 
                 Resource imageRes = book.getResources().getByHref(imageHref);
-
                 if (imageRes == null) {
-                    String decodedHref = java.net.URLDecoder.decode(imageHref, StandardCharsets.UTF_8);
-                    imageRes = book.getResources().getByHref(decodedHref);
-                }
-
-                if (imageRes == null) {
-                    log.warn("未找到图片资源: Original: {} -> Resolved: {}", src, imageHref);
+                    String fileName = new File(src).getName();
+                    log.debug("未找到图片资源: {}", imageHref);
+                    img.remove();
                     continue;
                 }
 
@@ -178,47 +168,14 @@ public class EpubService {
                     cache.put(imageHref, remoteUrl);
                     img.attr("src", remoteUrl);
                     img.attr("style", "max-width: 100%;");
-                    log.debug("图片上传成功: {}", remoteUrl);
                 } else {
-                    log.error("图片上传失败: {}", imageHref);
                     img.remove();
                 }
 
             } catch (Exception e) {
                 log.warn("处理图片异常: {} - {}", src, e.getMessage());
+                img.remove();
             }
-        }
-    }
-
-    private String resolvePath(String basePath, String relativePath) {
-        try {
-            if (relativePath.contains("#")) {
-                relativePath = relativePath.substring(0, relativePath.indexOf("#"));
-            }
-
-            if (relativePath.startsWith("/")) {
-                return relativePath.substring(1);
-            }
-
-            String currentDir = "";
-            if (basePath.contains("/")) {
-                currentDir = basePath.substring(0, basePath.lastIndexOf("/") + 1);
-            }
-
-            String fullPath = currentDir + relativePath;
-
-            java.util.LinkedList<String> parts = new java.util.LinkedList<>();
-            for (String part : fullPath.split("/")) {
-                if (part.equals("..")) {
-                    if (!parts.isEmpty()) parts.removeLast();
-                } else if (!part.equals(".") && !part.isEmpty()) {
-                    parts.add(part);
-                }
-            }
-
-            return String.join("/", parts);
-        } catch (Exception e) {
-            return relativePath;
         }
     }
 
@@ -304,12 +261,9 @@ public class EpubService {
         return text.matches("\\d+");
     }
 
-    private void appendFooterLinks(TelegraphService.PageResult pageToEdit, List<Map<String, Object>> content, String nextUrl, String bookmarkToken, String tokenToUse) {
+    private void appendFooterLinks(TelegraphService.PageResult pageToEdit, String nextUrl, String bookmarkToken, String tokenToUse) {
         try {
-            if (content == null) {
-                log.warn("无法更新页脚，内容列表为空: {}", pageToEdit.getUrl());
-                return;
-            }
+            List<Map<String, Object>> content = pageToEdit.getContent();
 
             Map<String, Object> hr = new HashMap<>();
             hr.put("tag", "hr");
@@ -338,37 +292,23 @@ public class EpubService {
             pWrapper.put("children", pChildren);
             content.add(pWrapper);
 
-            // 使用修改后的本地 content 列表调用 editPage
             telegraphService.editPage(pageToEdit.getPath(), pageToEdit.getTitle(), content, tokenToUse);
 
         } catch (Exception e) {
-            log.warn("更新页脚失败: {} - {}", pageToEdit.getUrl(), e.getMessage());
+            log.warn("更新页脚失败: {}", e.getMessage());
         }
     }
 
     private void flattenDom(Node node, List<Map<String, Object>> result) {
         if (node instanceof Element element) {
             String tagName = element.tagName().toLowerCase();
-
-            if (tagName.equals("img")) {
-                Map<String, Object> converted = telegraphService.convertNode(element, false);
-                if (converted != null) {
-                    result.add(converted);
-                }
-                return;
-            }
-
             if (isContentBlock(tagName)) {
                 Map<String, Object> converted = telegraphService.convertNode(element, false);
                 if (converted != null) result.add(converted);
                 return;
             }
-
             if (tagName.equals("br")) return;
-
-            for (Node child : element.childNodes()) {
-                flattenDom(child, result);
-            }
+            for (Node child : element.childNodes()) flattenDom(child, result);
         } else if (node instanceof TextNode) {
             String text = telegraphService.cleanText(((TextNode) node).text()).trim();
             if (!text.isEmpty()) {
