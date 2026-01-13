@@ -81,7 +81,6 @@ public class EpubService {
                             pageUrls.add(currentPage.getUrl());
                             String bookmarkToken = bookmarkService.createBookmarkToken(finalTitle, pageTitle, currentPage.getUrl());
                             if (previousPage != null) {
-                                log.info("previousPage != null appendFooterLinks, previousPage: [{}], currentPage url: [{}], previousBookmarkToken: [{}], UsedToken: [{}]", previousPage, currentPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
                                 appendFooterLinks(previousPage, currentPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
                             }
 
@@ -105,11 +104,9 @@ public class EpubService {
             if (lastPage != null) {
                 pageUrls.add(lastPage.getUrl());
                 if (previousPage != null) {
-                    log.info("最后一页 previousPage!=null appendFooterLinks, lastPage: [{}], currentPage url: [{}], previousBookmarkToken: [{}], UsedToken: [{}]", previousPage, lastPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
                     appendFooterLinks(previousPage, lastPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
                 }
                 String lastToken = bookmarkService.createBookmarkToken(finalTitle, pageTitle, lastPage.getUrl());
-                log.info("最后一页 previousPage==null appendFooterLinks, lastPage: [{}], currentPage url: [null], previousBookmarkToken: [{}], UsedToken: [{}]", previousPage, previousBookmarkToken, previousPage.getUsedToken());
                 appendFooterLinks(lastPage, null, lastToken, lastPage.getUsedToken());
             }
         }
@@ -277,9 +274,11 @@ public class EpubService {
             List<Object> pChildren = new ArrayList<>();
 
             if (nextUrl != null) {
+                String freshNextUrl = nextUrl + "?t=" + System.currentTimeMillis();
+
                 Map<String, Object> nextLink = new HashMap<>();
                 nextLink.put("tag", "a");
-                nextLink.put("attrs", Map.of("href", nextUrl));
+                nextLink.put("attrs", Map.of("href", freshNextUrl));
                 nextLink.put("children", List.of("👉 下一页  "));
                 pChildren.add(nextLink);
                 pChildren.add("   |   ");
@@ -330,7 +329,6 @@ public class EpubService {
     private int estimateLength(Map<String, Object> node) {
         String tag = (String) node.get("tag");
         if ("img".equalsIgnoreCase(tag)) {
-            log.info("has img");
             return IMAGE_WEIGHT;
         }
         int len = 0;

@@ -111,7 +111,7 @@ public class TelegraphService {
 
             String token = tokenPool.get(index);
             if (isTokenInCooldown(token)) {
-                log.info("🔄 轮询使用 Token [{}]: {}...", index, token.substring(0, 8));
+                log.debug("🔄 轮询使用 Token [{}]: {}...", index, token.substring(0, 8));
                 return token;
             }
         }
