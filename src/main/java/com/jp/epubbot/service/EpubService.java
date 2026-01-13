@@ -81,6 +81,7 @@ public class EpubService {
                             pageUrls.add(currentPage.getUrl());
                             String bookmarkToken = bookmarkService.createBookmarkToken(finalTitle, pageTitle, currentPage.getUrl());
                             if (previousPage != null) {
+                                log.info("previousPage != null appendFooterLinks, previousPage: [{}], currentPage url: [{}], previousBookmarkToken: [{}], UsedToken: [{}]", previousPage, currentPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
                                 appendFooterLinks(previousPage, currentPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
                             }
 
@@ -104,9 +105,11 @@ public class EpubService {
             if (lastPage != null) {
                 pageUrls.add(lastPage.getUrl());
                 if (previousPage != null) {
+                    log.info("最后一页 previousPage!=null appendFooterLinks, lastPage: [{}], currentPage url: [{}], previousBookmarkToken: [{}], UsedToken: [{}]", previousPage, lastPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
                     appendFooterLinks(previousPage, lastPage.getUrl(), previousBookmarkToken, previousPage.getUsedToken());
                 }
                 String lastToken = bookmarkService.createBookmarkToken(finalTitle, pageTitle, lastPage.getUrl());
+                log.info("最后一页 previousPage==null appendFooterLinks, lastPage: [{}], currentPage url: [null], previousBookmarkToken: [{}], UsedToken: [{}]", previousPage, previousBookmarkToken, previousPage.getUsedToken());
                 appendFooterLinks(lastPage, null, lastToken, lastPage.getUsedToken());
             }
         }
