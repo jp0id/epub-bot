@@ -472,7 +472,6 @@
         <div id="errorContainer" class="error" style="display: none;"></div>
 
         <div id="booksList" class="books-list">
-            <!-- Books will be loaded here -->
         </div>
 
         <div id="booksPagination" class="pagination" style="display: none;">
@@ -499,7 +498,6 @@
         <div id="bookmarksErrorContainer" class="error" style="display: none;"></div>
 
         <div id="bookmarksList" class="books-list">
-            <!-- Bookmarks will be loaded here -->
         </div>
 
         <div id="bookmarksPagination" class="pagination" style="display: none;">
@@ -550,11 +548,9 @@
         console.warn('Telegram Web App not available:', error);
     }
 
-    // Apply Telegram theme to CSS variables
     function applyTelegramTheme(tg) {
         const root = document.documentElement;
 
-        // Set CSS variables from Telegram theme
         root.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#667eea');
         root.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#333');
         root.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#718096');
@@ -563,7 +559,6 @@
         root.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || 'white');
         root.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || 'white');
 
-        // Adjust button colors based on theme
         const primaryBtn = document.querySelector('.btn-primary');
         if (primaryBtn && tg.themeParams.button_color) {
             primaryBtn.style.background = tg.themeParams.button_color;
@@ -574,7 +569,6 @@
     // API base URL
     const API_BASE = window.location.origin + '/api/miniapp';
 
-    // DOM elements
     const booksSection = document.getElementById('booksSection');
     const booksList = document.getElementById('booksList');
     const booksCount = document.getElementById('booksCount');
@@ -658,11 +652,17 @@
                 data.books.forEach(book => {
                     const bookElement = document.createElement('div');
                     bookElement.className = 'book-card';
+                    // 修改了这里：增加了 bookmark-actions 容器和删除按钮
                     bookElement.innerHTML = `
                             <div class="book-name">${escapeHtml(book.name)}</div>
-                            <a href="${escapeHtml(book.url)}" class="book-link" target="_blank">
-                                Open in Telegraph
-                            </a>
+                            <div class="bookmark-actions">
+                                <a href="${escapeHtml(book.url)}" class="book-link" target="_blank">
+                                    Open in Telegraph
+                                </a>
+                                <button class="delete-btn" onclick="deleteBook('${escapeHtml(book.name).replace(/'/g, "\\'")}')">
+                                    🗑️ 删除
+                                </button>
+                            </div>
                         `;
                     booksList.appendChild(bookElement);
                 });
@@ -670,7 +670,6 @@
                 booksList.innerHTML = '<div class="loading">暂无书籍。上传EPUB文件即可开始阅读。</div>';
             }
 
-            // Update pagination controls
             updateBooksPagination(data.totalPages, page);
 
         } catch (error) {
@@ -773,19 +772,47 @@
         }
     }
 
-    // Load user bookmarks with pagination and grouping
+    // Delete book
+    async function deleteBook(bookName) {
+        if (!confirm(`确定要删除书籍 "${bookName}" 吗？\n这将删除该书的所有记录。`)) {
+            return;
+        }
+
+        try {
+            const targetUrl = new URL(`${API_BASE}/books`);
+            targetUrl.searchParams.append('bookName', bookName);
+
+            console.log('Deleting Book:', bookName);
+
+            const response = await fetch(targetUrl.toString(), {
+                method: 'DELETE'
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Failed to delete book');
+            }
+
+            alert('书籍已删除！');
+
+            loadAllBooks(currentBooksPage);
+
+        } catch (error) {
+            alert(`删除书籍时出错: ${error.message}`);
+            console.error(error);
+        }
+    }
+
     async function loadBookmarks(page = currentBookmarksPage) {
-        // Update current page
         currentBookmarksPage = page;
 
-        // Get user ID from Telegram Web App
         const userId = getUserId();
         if (!userId) {
             showBookmarksError('无法获取用户信息，请确保在Telegram中打开此页面。');
             return;
         }
 
-        // Show loading and hide previous error
         bookmarksLoading.style.display = 'block';
         hideBookmarksError();
         bookmarksList.innerHTML = '';
@@ -798,21 +825,16 @@
                 throw new Error(data.error || 'Failed to load bookmarks');
             }
 
-            // Hide loading
             bookmarksLoading.style.display = 'none';
 
-            // Show bookmarks section
             bookmarksSection.classList.add('visible');
             booksSection.classList.remove('visible');
 
-            // Update count
             bookmarksCount.textContent = `${data.totalBookmarks} 书签`;
             bookmarksPaginationInfo.textContent = `第 ${page + 1} / ${data.totalPages} 页，共 ${data.totalBookmarks} 个书签`;
 
-            // Render bookmarks by groups
             if (data.groups && data.groups.length > 0) {
                 data.groups.forEach(group => {
-                    // Group header
                     const groupHeader = document.createElement('div');
                     groupHeader.className = 'bookmark-group-header';
                     groupHeader.innerHTML = `
@@ -823,7 +845,6 @@
                         `;
                     bookmarksList.appendChild(groupHeader);
 
-                    // Group bookmarks
                     if (group.bookmarks && group.bookmarks.length > 0) {
                         group.bookmarks.forEach(bookmark => {
                             const bookmarkElement = document.createElement('div');
@@ -848,7 +869,6 @@
                 bookmarksList.innerHTML = '<div class="loading">暂无书签。阅读时点击"保存书签"即可添加书签。</div>';
             }
 
-            // Update pagination controls
             updateBookmarksPagination(data.totalPages, page);
 
         } catch (error) {
@@ -856,7 +876,6 @@
         }
     }
 
-    // Update bookmarks pagination controls
     function updateBookmarksPagination(totalPages, currentPage) {
         if (totalPages <= 1) {
             bookmarksPagination.style.display = 'none';
@@ -865,22 +884,18 @@
 
         bookmarksPagination.style.display = 'flex';
 
-        // Update prev/next buttons
         bookmarksPrevPage.disabled = currentPage <= 0;
         bookmarksNextPage.disabled = currentPage >= totalPages - 1;
 
-        // Update page numbers
         bookmarksPageNumbers.innerHTML = '';
         const maxVisiblePages = 5;
         let startPage = Math.max(0, currentPage - Math.floor(maxVisiblePages / 2));
         let endPage = Math.min(totalPages - 1, startPage + maxVisiblePages - 1);
 
-        // Adjust start page if we're near the end
         if (endPage - startPage + 1 < maxVisiblePages) {
             startPage = Math.max(0, endPage - maxVisiblePages + 1);
         }
 
-        // First page
         if (startPage > 0) {
             const firstPageBtn = document.createElement('span');
             firstPageBtn.className = 'page-number';
@@ -895,7 +910,6 @@
             }
         }
 
-        // Page numbers
         for (let i = startPage; i <= endPage; i++) {
             const pageBtn = document.createElement('span');
             pageBtn.className = 'page-number';
@@ -907,7 +921,6 @@
             bookmarksPageNumbers.appendChild(pageBtn);
         }
 
-        // Last page
         if (endPage < totalPages - 1) {
             if (endPage < totalPages - 2) {
                 const ellipsis = document.createElement('span');
@@ -922,7 +935,6 @@
             bookmarksPageNumbers.appendChild(lastPageBtn);
         }
 
-        // Setup prev/next button handlers
         bookmarksPrevPage.onclick = () => {
             if (currentPage > 0) {
                 loadBookmarks(currentPage - 1);
@@ -936,16 +948,13 @@
         };
     }
 
-    // Clear user bookmarks
     async function clearBookmarks() {
-        // Get user ID from Telegram Web App
         const userId = getUserId();
         if (!userId) {
             alert('无法获取用户信息，请确保在Telegram中打开此页面。');
             return;
         }
 
-        // Confirm before clearing
         if (!confirm('确定要清空所有书签吗？此操作不可撤销。')) {
             return;
         }
@@ -960,7 +969,6 @@
 
             alert('书签已清空！');
 
-            // Refresh bookmarks list if it's visible
             if (bookmarksSection.classList.contains('visible')) {
                 loadBookmarks();
             }
@@ -969,29 +977,22 @@
         }
     }
 
-    // Delete single bookmark
     async function deleteBookmark(url) {
-        // Get user ID from Telegram Web App
         const userId = getUserId();
         if (!userId) {
             alert('无法获取用户信息，请确保在Telegram中打开此页面。');
             return;
         }
 
-        // Confirm before deleting
         if (!confirm('确定要删除这个书签吗？')) {
             return;
         }
         console.log('Deleting URL:', url);
 
         try {
-            // 【核心修改】使用 URL 对象构建请求，自动处理所有特殊字符编码
             const targetUrl = new URL(`${API_BASE}/bookmarks`);
             targetUrl.searchParams.append('userId', userId);
             targetUrl.searchParams.append('url', url);
-
-            // 打印日志以便调试（可选）
-            console.log('Deleting URL:', targetUrl.toString());
 
             const response = await fetch(targetUrl.toString(), {
                 method: 'DELETE'
@@ -1005,18 +1006,15 @@
 
             alert('书签已删除！');
 
-            // Refresh bookmarks list if it's visible
             if (bookmarksSection.classList.contains('visible')) {
                 loadBookmarks();
             }
         } catch (error) {
-            // 显示详细错误信息
             alert(`删除书签时出错: ${error.message}`);
             console.error(error);
         }
     }
 
-    // Get user ID from Telegram Web App
     function getUserId() {
         if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
             return tg.initDataUnsafe.user.id;
@@ -1024,18 +1022,11 @@
         return null;
     }
 
-    // Simple HTML escape function
     function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
-
-    // Load books on page load (optional)
-    // window.addEventListener('DOMContentLoaded', () => {
-    //     // Uncomment to auto-load books on page load
-    //     // loadAllBooks();
-    // });
 </script>
 
 </body>

@@ -27,6 +27,10 @@ public class BookmarkService {
     private final BookmarkTokenRepository tokenRepo;
     private final UserBookmarkRepository bookmarkRepo;
 
+    public void deleteBook(String bookName) {
+        tokenRepo.deleteByBookName(bookName);
+    }
+
     // --- DTOs 用于前后端交互 (保持原有的 DTO 结构不变) ---
     @Data
     public static class BookmarkInfo {
@@ -119,7 +123,6 @@ public class BookmarkService {
         return sb.toString();
     }
 
-    // 对应 MiniApp 的 getAllBooksStructured
     public List<Map<String, String>> getAllBooksStructuredWithSearch(String searchTerm) {
         List<BookmarkToken> tokens;
 

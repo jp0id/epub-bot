@@ -100,6 +100,31 @@ public class MiniAppController {
         return response;
     }
 
+    @DeleteMapping("/books")
+    public Map<String, Object> deleteBook(@RequestParam String bookName) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            if (bookName == null || bookName.isBlank()) {
+                response.put("success", false);
+                response.put("error", "Book name is required");
+                response.put("timestamp", System.currentTimeMillis());
+                return response;
+            }
+            log.info("Request to delete book: {}", bookName);
+            bookmarkService.deleteBook(bookName);
+            response.put("success", true);
+            response.put("message", "Book deleted successfully");
+            response.put("timestamp", System.currentTimeMillis());
+
+        } catch (Exception e) {
+            log.error("Failed to delete book: {}", bookName, e);
+            response.put("success", false);
+            response.put("error", "Failed to delete book: " + e.getMessage());
+            response.put("timestamp", System.currentTimeMillis());
+        }
+        return response;
+    }
+
     @GetMapping("/bookmarks")
     public Map<String, Object> getUserBookmarks(
             Long userId,

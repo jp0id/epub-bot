@@ -17,6 +17,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,11 +33,11 @@ public class TelegraphService {
 
     private final String initialToken;
 
-    private static final int WAIT_THRESHOLD_SECONDS = 30;
-
     private final List<String> tokenPool = Collections.synchronizedList(new ArrayList<>());
     private final Map<String, Long> tokenCooldowns = new ConcurrentHashMap<>();
     private volatile String currentAccessToken;
+
+    private final AtomicInteger tokenIndex = new AtomicInteger(0);
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -88,6 +89,45 @@ public class TelegraphService {
         }
     }
 
+    private synchronized String getNextAvailableToken() {
+        if (tokenPool.isEmpty()) {
+            String newToken = createNewAccount();
+            if (newToken != null) {
+                tokenPool.add(newToken);
+                saveNewTokenToDb(newToken);
+                return newToken;
+            }
+            throw new RuntimeException("无法创建 Telegraph 账户且 Token 池为空");
+        }
+
+        int size = tokenPool.size();
+        // 尝试遍历一圈，寻找未冷却的 Token
+        for (int i = 0; i < size; i++) {
+            int index = tokenIndex.getAndIncrement() % size;
+            if (index < 0) {
+                index = Math.abs(index);
+                tokenIndex.set(index + 1);
+            }
+
+            String token = tokenPool.get(index);
+            if (isTokenInCooldown(token)) {
+                log.info("🔄 轮询使用 Token [{}]: {}...", index, token.substring(0, 8));
+                return token;
+            }
+        }
+
+        log.warn("⚠️ 所有 {} 个 Token 均在冷却中，尝试创建新账户...", size);
+        String newToken = createNewAccount();
+        if (newToken != null) {
+            tokenPool.add(newToken);
+            saveNewTokenToDb(newToken);
+            return newToken;
+        }
+
+        // 如果创建失败，只能硬着头皮用第一个（后续逻辑会触发等待）
+        return tokenPool.get(0);
+    }
+
     private void saveNewTokenToDb(String token) {
         TelegraphAccount account = new TelegraphAccount();
         account.setAccessToken(token);
@@ -100,12 +140,12 @@ public class TelegraphService {
     }
 
     private synchronized String getValidToken() {
-        if (currentAccessToken != null && !isTokenInCooldown(currentAccessToken)) {
+        if (currentAccessToken != null && isTokenInCooldown(currentAccessToken)) {
             return currentAccessToken;
         }
 
         for (String token : tokenPool) {
-            if (!isTokenInCooldown(token)) {
+            if (isTokenInCooldown(token)) {
                 currentAccessToken = token;
                 log.info("🔄 切换到现存 Token: {}...", token.substring(0, 8));
                 return token;
@@ -293,12 +333,12 @@ public class TelegraphService {
 
     private boolean isTokenInCooldown(String token) {
         Long unlockTime = tokenCooldowns.get(token);
-        if (unlockTime == null) return false;
+        if (unlockTime == null) return true;
         if (System.currentTimeMillis() > unlockTime) {
             tokenCooldowns.remove(token);
-            return false;
+            return true;
         }
-        return true;
+        return false;
     }
 
     @SuppressWarnings("rawtypes")
@@ -306,7 +346,7 @@ public class TelegraphService {
         String url = "https://api.telegra.ph/createPage";
         int maxRetries = 10;
         for (int i = 0; i < maxRetries; i++) {
-            String tokenToUse = getValidToken();
+            String tokenToUse = getNextAvailableToken();
 
             try {
                 String contentJson = objectMapper.writeValueAsString(contentNodes);
@@ -322,8 +362,8 @@ public class TelegraphService {
                     Map result = (Map) response.get("result");
                     return new PageResult((String) result.get("path"), (String) result.get("url"), title, contentNodes, tokenToUse);
                 } else {
-                    if (handleFloodWait(tokenToUse, (String) response.get("error"))) continue;
-                    else return null;
+                    assert response != null;
+                    handleFloodWait(tokenToUse, (String) response.get("error"));
                 }
             } catch (Exception e) {
                 try {
@@ -335,36 +375,65 @@ public class TelegraphService {
         return null;
     }
 
+    @SuppressWarnings("rawtypes")
     public void editPage(String path, String title, List<Map<String, Object>> contentNodes, String requiredToken) {
-        if (isTokenInCooldown(requiredToken)) return;
         String url = "https://api.telegra.ph/editPage";
-        try {
-            String contentJson = objectMapper.writeValueAsString(contentNodes);
-            Map<String, Object> request = new HashMap<>();
-            request.put("access_token", requiredToken);
-            request.put("title", title);
-            request.put("content", contentJson);
-            request.put("path", path);
-            request.put("return_content", false);
-            restTemplate.postForObject(url, request, Map.class);
-        } catch (Exception e) {
-            log.error("EditPage failed", e);
+        int maxRetries = 5;
+
+        for (int i = 0; i < maxRetries; i++) {
+            Long unlockTime = tokenCooldowns.get(requiredToken);
+            if (unlockTime != null) {
+                long waitTime = unlockTime - System.currentTimeMillis();
+                if (waitTime > 0) {
+                    log.warn("Token {} 处于冷却中，编辑操作需等待 {} ms", requiredToken.substring(0, 8), waitTime);
+                    try {
+                        Thread.sleep(waitTime + 500);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                }
+                tokenCooldowns.remove(requiredToken);
+            }
+
+            try {
+                String contentJson = objectMapper.writeValueAsString(contentNodes);
+                Map<String, Object> request = new HashMap<>();
+                request.put("access_token", requiredToken);
+                request.put("title", title);
+                request.put("content", contentJson);
+                request.put("path", path);
+                request.put("return_content", false);
+
+                Map response = restTemplate.postForObject(url, request, Map.class);
+
+                if (response != null && (Boolean) response.get("ok")) {
+                    return;
+                } else {
+                    String error = (String) response.get("error");
+                    log.warn("编辑页面失败 (尝试 {}/{}): {}", i + 1, maxRetries, error);
+                    if (handleFloodWait(requiredToken, error)) {
+                        continue;
+                    }
+                    return;
+                }
+            } catch (Exception e) {
+                log.error("编辑页面发生异常", e);
+                try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+            }
         }
     }
+
 
     private boolean handleFloodWait(String token, String errorMsg) {
         if (errorMsg != null && errorMsg.startsWith("FLOOD_WAIT")) {
             Matcher matcher = FLOOD_WAIT_PATTERN.matcher(errorMsg);
             int waitSeconds = 5;
             if (matcher.find()) waitSeconds = Integer.parseInt(matcher.group(1));
-            if (waitSeconds <= WAIT_THRESHOLD_SECONDS) {
-                try {
-                    Thread.sleep((waitSeconds + 1) * 1000L);
-                } catch (InterruptedException ignored) {
-                }
-            } else {
-                tokenCooldowns.put(token, System.currentTimeMillis() + (waitSeconds + 2) * 1000L);
-            }
+            log.warn("触发限流 (FLOOD_WAIT)，需等待 {} 秒. Token: {}", waitSeconds, token.substring(0, 8));
+            tokenCooldowns.put(token, System.currentTimeMillis() + (waitSeconds + 1) * 1000L);
+            // 如果是在 createPage 循环中，我们不需要 sleep，直接 return true 让循环去取下一个 Token
+            // 如果是在 editPage 循环中，因为必须用这个 Token，所以下一次循环开头会 sleep
             return true;
         }
         return false;
