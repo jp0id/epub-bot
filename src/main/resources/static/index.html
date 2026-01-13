@@ -774,6 +774,12 @@
 
     // Delete book
     async function deleteBook(bookName) {
+        const userId = getUserId();
+        if (!userId) {
+            showBookmarksError('无法获取用户信息，请确保在Telegram中打开此页面。');
+            return;
+        }
+
         if (!confirm(`确定要删除书籍 "${bookName}" 吗？\n这将删除该书的所有记录。`)) {
             return;
         }
@@ -781,6 +787,7 @@
         try {
             const targetUrl = new URL(`${API_BASE}/books`);
             targetUrl.searchParams.append('bookName', bookName);
+            targetUrl.searchParams.append('userId', userId);
 
             console.log('Deleting Book:', bookName);
 

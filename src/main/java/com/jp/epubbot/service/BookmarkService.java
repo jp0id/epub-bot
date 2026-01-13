@@ -3,12 +3,12 @@ package com.jp.epubbot.service;
 import com.jp.epubbot.entity.BookmarkToken;
 import com.jp.epubbot.entity.UserBookmark;
 import com.jp.epubbot.repository.BookmarkTokenRepository;
-import com.jp.epubbot.repository.ReadingPositionRepository;
 import com.jp.epubbot.repository.UserBookmarkRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,16 +22,15 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class BookmarkService {
 
+    @Value("${telegram.bot.admins:}")
+    private String adminList;
+
     private static final String DATA_DIR = "data";
 
     private final BookmarkTokenRepository tokenRepo;
     private final UserBookmarkRepository bookmarkRepo;
+    private List<String> admins;
 
-    public void deleteBook(String bookName) {
-        tokenRepo.deleteByBookName(bookName);
-    }
-
-    // --- DTOs 用于前后端交互 (保持原有的 DTO 结构不变) ---
     @Data
     public static class BookmarkInfo {
         private String bookName;
@@ -48,6 +47,7 @@ public class BookmarkService {
     @PostConstruct
     @Transactional
     public void initAndMigrate() {
+        admins = Arrays.stream(adminList.split(",")).toList();
         File dir = new File(DATA_DIR);
         if (!dir.exists()) dir.mkdirs();
     }
@@ -98,6 +98,16 @@ public class BookmarkService {
             return true;
         } catch (Exception e) {
             log.error("删除书签失败", e);
+            return false;
+        }
+    }
+
+    @Transactional
+    public boolean deleteBook(String bookName, Long userId) {
+        if (admins.isEmpty() || admins.contains(String.valueOf(userId))) {
+            tokenRepo.deleteByBookName(bookName);
+            return true;
+        } else {
             return false;
         }
     }

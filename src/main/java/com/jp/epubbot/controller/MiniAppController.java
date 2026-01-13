@@ -101,19 +101,31 @@ public class MiniAppController {
     }
 
     @DeleteMapping("/books")
-    public Map<String, Object> deleteBook(@RequestParam String bookName) {
+    public Map<String, Object> deleteBook(@RequestParam String bookName, @RequestParam Long userId) {
         Map<String, Object> response = new HashMap<>();
         try {
+            if (userId == null) {
+                response.put("success", false);
+                response.put("error", "User ID is required");
+                response.put("timestamp", System.currentTimeMillis());
+                return response;
+            }
+
             if (bookName == null || bookName.isBlank()) {
                 response.put("success", false);
                 response.put("error", "Book name is required");
                 response.put("timestamp", System.currentTimeMillis());
                 return response;
             }
-            log.info("Request to delete book: {}", bookName);
-            bookmarkService.deleteBook(bookName);
-            response.put("success", true);
-            response.put("message", "Book deleted successfully");
+            log.info("Request to delete book: [{}], userId: [{}]", bookName, userId);
+            boolean isDone = bookmarkService.deleteBook(bookName, userId);
+            if (isDone) {
+                response.put("success", true);
+                response.put("message", "Book deleted successfully");
+            } else {
+                response.put("success", false);
+                response.put("message", "You can't delete book! ");
+            }
             response.put("timestamp", System.currentTimeMillis());
 
         } catch (Exception e) {
