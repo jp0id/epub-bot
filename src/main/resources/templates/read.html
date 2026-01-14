@@ -240,8 +240,10 @@
     Aa 宋体
 </div>
 
-<h2 th:text="${title}"></h2>
-
+<h2 id="articleTitle"
+    th:text="${title}"
+    th:data-token="${bookmarkToken}">
+</h2>
 <div id="contentArea" class="content font-style-serif" th:utext="${content}"></div>
 
 <!-- 4. 暴力补丁：在内容渲染完后立刻执行一次检查，解决缓存图片不显示问题 -->
@@ -275,104 +277,88 @@
 </div>
 
 <script th:inline="javascript">
+    // 初始化 Telegram SDK
     const tg = window.Telegram.WebApp;
     tg.ready();
     tg.expand();
 
-    let bookmarkToken = [[${bookmarkToken}]] || '';
-    let botUsername = [[${botUsername}]] || '';
-    let nextPageUrl = [[${nextPageUrl}]];
 
     const contentArea = document.getElementById('contentArea');
     const fontBtn = document.getElementById('fontBtn');
-    const titleElem = document.querySelector('h2'); // 获取标题元素
-    const nextBtn = document.getElementById('nextBtn'); // 获取下一页按钮
+    const titleElem = document.getElementById('articleTitle');
+    const nextBtn = document.getElementById('nextBtn');
+
+    let bookmarkToken = titleElem.getAttribute('data-token') || '';
+    let nextPageUrl = nextBtn ? nextBtn.getAttribute('href') : null;
+    let botUsername = [[${botUsername}]] || '';
+
+    let preloadedDoc = null;
 
     const FONT_SERIF = 'font-style-serif';
     const FONT_SANS = 'font-style-sans';
     const STORAGE_KEY = 'epub_reader_font_style';
 
-    let preloadedDoc = null; // 用于存储后台下载好的下一页 DOM
-
-
     function prefetchNext() {
         if (!nextPageUrl) return;
 
-        console.log('开始预加载下一页:', nextPageUrl);
         fetch(nextPageUrl)
             .then(response => response.text())
             .then(html => {
                 const parser = new DOMParser();
                 preloadedDoc = parser.parseFromString(html, 'text/html');
-                console.log('下一页预加载完成');
             })
-            .catch(err => console.error('预加载失败:', err));
+            .catch(err => console.error('预加载失败', err));
     }
 
 
     function handleNextPage(e) {
-        if (!preloadedDoc || !nextPageUrl) {
-            return;
-        }
+        if (!preloadedDoc) return;
 
         e.preventDefault();
 
         if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
 
         swapContent(preloadedDoc);
-
-        window.scrollTo(0, 0);
-
-        preloadedDoc = null;
-        if (nextPageUrl) {
-            prefetchNext();
-        }
     }
 
     function swapContent(doc) {
-        const newTitle = doc.querySelector('h2').innerText;
-        titleElem.innerText = newTitle;
-        document.title = newTitle; // 更新浏览器标题
+        const newTitleElem = doc.getElementById('articleTitle');
+        if (newTitleElem) {
+            titleElem.innerText = newTitleElem.innerText;
+            document.title = newTitleElem.innerText;
+            bookmarkToken = newTitleElem.getAttribute('data-token');
+            titleElem.setAttribute('data-token', bookmarkToken);
+        }
 
         const newContent = doc.getElementById('contentArea').innerHTML;
         contentArea.innerHTML = newContent;
-
+        window.scrollTo(0, 0); // 滚回顶部
 
         const newNextBtn = doc.getElementById('nextBtn');
         if (newNextBtn) {
             nextPageUrl = newNextBtn.getAttribute('href');
             nextBtn.setAttribute('href', nextPageUrl);
-            nextBtn.style.display = 'inline-flex'; // 确保显示
+            nextBtn.style.display = 'inline-flex';
 
             const endSpan = document.querySelector('.nav-bar span');
-            if(endSpan) endSpan.remove(); // 移除旧的"完"
+            if(endSpan) endSpan.remove();
         } else {
             nextPageUrl = null;
             nextBtn.style.display = 'none';
         }
 
-        const scripts = doc.querySelectorAll('script');
-        scripts.forEach(s => {
-            const match = s.innerText.match(/const bookmarkToken = '(.*?)'/); // 匹配服务端渲染的 Token
-            if (match && match[1]) {
-                bookmarkToken = match[1];
-            }
-        });
-
-        initImages();
+        initImages(); // 重新绑定图片加载逻辑
+        preloadedDoc = null; // 清空缓存
+        prefetchNext(); // 预加载下下页
     }
 
     function initImages() {
         const imgs = contentArea.getElementsByTagName('img');
         for (let i = 0; i < imgs.length; i++) {
             const img = imgs[i];
-
             img.onerror = function() { this.remove(); };
             img.onload = function() { this.classList.add('loaded'); };
-
-            if (img.complete && img.naturalWidth > 0) {
-                img.classList.add('loaded');
-            }
+            if (img.complete && img.naturalWidth > 0) img.classList.add('loaded');
         }
     }
 
@@ -390,30 +376,21 @@
 
     function toggleFont() {
         if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+        const isSerif = contentArea.classList.contains(FONT_SERIF);
+        const newFont = isSerif ? FONT_SANS : FONT_SERIF;
 
-        if (contentArea.classList.contains(FONT_SERIF)) {
-            contentArea.classList.remove(FONT_SERIF);
-            contentArea.classList.add(FONT_SANS);
-            localStorage.setItem(STORAGE_KEY, FONT_SANS);
-            updateBtnText(FONT_SANS);
-        } else {
-            contentArea.classList.remove(FONT_SANS);
-            contentArea.classList.add(FONT_SERIF);
-            localStorage.setItem(STORAGE_KEY, FONT_SERIF);
-            updateBtnText(FONT_SERIF);
-        }
+        contentArea.classList.remove(FONT_SERIF, FONT_SANS);
+        contentArea.classList.add(newFont);
+        localStorage.setItem(STORAGE_KEY, newFont);
+        updateBtnText(newFont);
     }
 
-    function updateBtnText(currentClass) {
-        if (currentClass === FONT_SERIF) {
-            fontBtn.textContent = "Aa 宋体";
-        } else {
-            fontBtn.textContent = "Aa 黑体";
-        }
+    function updateBtnText(fontClass) {
+        fontBtn.textContent = (fontClass === FONT_SERIF) ? "Aa 宋体" : "Aa 黑体";
     }
 
     function showMessage(msg) {
-        if (tg.isVersionAtLeast('6.2')) {
+        if (tg.isVersionAtLeast && tg.isVersionAtLeast('6.2')) {
             tg.showPopup({message: msg});
         } else {
             alert(msg);
@@ -422,42 +399,41 @@
 
     function saveBookmark() {
         if (!bookmarkToken) {
-            showMessage('无法获取书签信息 (Token丢失)');
+            bookmarkToken = titleElem.getAttribute('data-token');
+        }
+
+        if (!bookmarkToken) {
+            showMessage('❌ 无法获取书签信息');
             return;
         }
+
         const user = tg.initDataUnsafe && tg.initDataUnsafe.user;
+
         if (user) {
             fetch('/api/miniapp/bookmark', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    userId: user.id,
-                    token: bookmarkToken
-                })
+                body: JSON.stringify({ userId: user.id, token: bookmarkToken })
             })
-                .then(response => response.json())
+                .then(res => res.json())
                 .then(data => {
                     if (data.success) showMessage('✅ 书签已保存');
                     else showMessage('❌ 保存失败: ' + (data.error || '未知错误'));
                 })
-                .catch(err => {
-                    console.error(err);
-                    showMessage('❌ 网络错误');
-                });
-        } else {
+                .catch(() => showMessage('❌ 网络错误'));
+        }
+        else {
             if (!botUsername) {
-                alert("配置错误：未获取到 Bot Username");
+                alert("未配置 Bot Username");
                 return;
             }
             window.location.href = `https://t.me/${botUsername}?start=${bookmarkToken}`;
         }
     }
 
-    initFont();
 
-    setTimeout(() => {
-        prefetchNext();
-    }, 1000);
+    initFont();
+    setTimeout(prefetchNext, 800);
 
 </script>
 </body>
