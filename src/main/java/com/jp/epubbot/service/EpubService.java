@@ -91,7 +91,7 @@ public class EpubService {
             pageUrls.add(pageUrl);
             bookmarkService.createBookmarkToken(bookTitle, bookTitle + " (" + pageCounter + ") - End", pageUrl);
         }
-
+        log.info("解析书籍: {} (ID: {}) 完成", bookTitle, bookId);
         return pageUrls;
     }
 
