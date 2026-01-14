@@ -41,7 +41,7 @@
             margin-top: 0;
             /* 标题颜色稍微深一点 */
             color: #1a1a1a;
-            border-bottom: 1px solid rgba(0,0,0,0.1);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
             padding-bottom: 15px;
             margin-bottom: 20px;
             font-weight: 600;
@@ -64,14 +64,14 @@
             height: auto;
             border-radius: 8px;
             margin: 15px 0;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* 给图片加一点阴影 */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* 给图片加一点阴影 */
         }
 
         /* --- 底部导航栏样式 --- */
         .nav-bar {
             margin-top: 40px;
             padding-top: 20px;
-            border-top: 1px solid rgba(0,0,0,0.1);
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
 
             /* 限制导航栏宽度与正文一致 */
             max-width: 800px;
@@ -95,7 +95,7 @@
             display: inline-flex;
             align-items: center;
             transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .btn:active {
@@ -136,17 +136,15 @@
 
     <!-- 如果没有下一页，显示提示 -->
     <span th:unless="${nextPageUrl}" style="color: var(--tg-theme-hint-color); font-size: 14px;">
-            已读完
+            完
         </span>
 </div>
 
 <script th:inline="javascript">
-    // 初始化 Web App
     const tg = window.Telegram.WebApp;
     tg.ready();
     tg.expand();
 
-    // 获取后端传来的变量
     const bookmarkToken = [[${bookmarkToken}]] || '';
     const botUsername = [[${botUsername}]] || '';
 
@@ -164,13 +162,10 @@
             return;
         }
 
-        // 1. 判断是否在 Telegram Web App 环境中
-        // tg.initDataUnsafe.user 只有在 Telegram 内打开时才存在
         const user = tg.initDataUnsafe && tg.initDataUnsafe.user;
 
         if (user) {
             // === 场景 A: 在 Telegram 内 ===
-            // 直接调用 API 静默保存
             fetch('/api/miniapp/bookmark', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -194,7 +189,6 @@
 
         } else {
             // === 场景 B: 在外部浏览器 (Chrome/Safari) ===
-            // 跳转到 Telegram Bot 进行保存
             if (!botUsername) {
                 alert("配置错误：未获取到 Bot Username");
                 return;

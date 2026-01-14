@@ -23,8 +23,6 @@
 | `TELEGRAM_BOT_USERNAME`     | `string` | `null`                     | telegram bot name                                                              |
 | `TELEGRAM_BOT_ADMINS`       | `string` | `null`                     | bot的可上传书籍人的telegram id，多个使用`,`隔开，留空表示任何人都可上传epub文件                             |
 | `TELEGRAM_BOT_BASE`         | `string` | `https://api.telegram.org` | telegram api base url                                                          |
-| `TELEGRAPH_AUTHOR_NAME`     | `string` | `EpubReaderBot`            | telegraph 页面作者，任意即可                                                            |
-| `TELEGRAPH_ACCESS_TOKEN`    | `string` | `null`                     | telegraph token，留空时会自动创建                                                       |
 | `APP_CHARS_PER_PAGE`        | `int`    | `3000`                     | 每一页的字数，建议不超过10000，Telegraph 的 API 有 64KB 的节点大小限制                               |
 | `TELEGRAPH_CATTO_PIC_TOKEN` | `string` | `null`                     | 自定义图床验证token(需自建)，具体参考：https://github.com/jp0id/CattoPic/blob/main/docs/API.md |
 

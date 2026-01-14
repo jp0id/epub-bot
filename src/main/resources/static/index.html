@@ -657,7 +657,7 @@
                             <div class="book-name">${escapeHtml(book.name)}</div>
                             <div class="bookmark-actions">
                                 <a href="${escapeHtml(book.url)}" class="book-link" target="_blank">
-                                    Open in Telegraph
+                                    📚 阅读
                                 </a>
                                 <button class="delete-btn" onclick="deleteBook('${escapeHtml(book.name).replace(/'/g, "\\'")}')">
                                     🗑️ 删除
@@ -861,7 +861,7 @@
                                     <div class="book-url">${escapeHtml(bookmark.chapterTitle)}</div>
                                     <div class="bookmark-actions">
                                         <a href="${escapeHtml(bookmark.url)}" class="book-link" target="_blank">
-                                            打开书签
+                                            📚 打开书签
                                         </a>
                                         <button class="delete-btn" onclick="deleteBookmark(decodeURIComponent('${encodeURIComponent(bookmark.url)}'))">
                                             🗑️ 删除
