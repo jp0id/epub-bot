@@ -14,10 +14,8 @@
             line-height: 1.8;
             margin: 0;
             padding: 20px;
-
             background-color: #FAF9DE;
             color: #2c3e50;
-
             padding-bottom: 100px;
             transition: background-color 0.3s, color 0.3s;
         }
@@ -37,7 +35,7 @@
             padding-bottom: 15px;
             margin-bottom: 20px;
             font-weight: 600;
-            padding-right: 80px; /* 防止标题太长遮挡右上角按钮 */
+            padding-right: 80px;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -47,7 +45,6 @@
             }
         }
 
-        /* --- 正文容器样式 --- */
         .content {
             font-size: 19px;
             text-align: justify;
@@ -67,7 +64,9 @@
             letter-spacing: 0.02em;
         }
 
-        /* --- 图片样式优化 --- */
+        /* --- 图片样式核心修复 --- */
+
+        /* 1. 普通 IMG 标签：默认隐藏，防止破图图标 */
         .content img {
             max-width: 100%;
             height: auto;
@@ -75,6 +74,23 @@
             margin: 15px auto;
             display: block;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+            opacity: 0; /* 默认透明 */
+            transition: opacity 0.2s ease-in;
+            color: transparent; /* 隐藏 alt 文字 */
+        }
+
+        /* 加载成功后显示 */
+        .content img.loaded {
+            opacity: 1;
+        }
+
+        /* 2. SVG 内部的 IMAGE 标签：默认显示！
+           因为 SVG 图片加载失败通常是空白，不会有丑陋图标，
+           所以不需要预先隐藏，这样能避免加载时序导致的空白问题。
+        */
+        .content svg image {
+            opacity: 1;
         }
 
         /* --- 悬浮字体切换按钮 --- */
@@ -130,7 +146,6 @@
             }
         }
 
-        /* 按钮通用样式 */
         .btn {
             text-decoration: none;
             padding: 12px 24px;
@@ -151,13 +166,11 @@
             box-shadow: none;
         }
 
-        /* 下一页按钮 */
         .btn-primary {
             background-color: #5b8cff;
             color: #ffffff;
         }
 
-        /* 保存书签按钮 */
         .btn-secondary {
             background-color: #e8e4c9;
             color: #5d5d5d;
@@ -172,10 +185,57 @@
             }
         }
     </style>
+
+    <!-- 核心修复：图片加载控制脚本 -->
+    <script>
+        // 定义检查函数：如果图片好了，立刻显示
+        function checkImage(img) {
+            if (img.complete && img.naturalWidth > 0) {
+                img.classList.add('loaded');
+            }
+        }
+
+        // 1. 监听加载成功 (捕获阶段)
+        window.addEventListener('load', function(e) {
+            if (e.target && e.target.tagName === 'IMG') {
+                e.target.classList.add('loaded');
+            }
+        }, true);
+
+        // 2. 监听加载失败 (捕获阶段) - 核心防破图逻辑
+        window.addEventListener('error', function(e) {
+            if (!e.target || !e.target.tagName) return;
+            const tag = e.target.tagName.toUpperCase();
+
+            if (tag === 'IMG') {
+                e.target.remove(); // 普通图片坏了直接删
+            } else if (tag === 'IMAGE') {
+                // SVG 图片坏了，删除外层 SVG 容器
+                const svgParent = e.target.closest('svg');
+                if (svgParent) svgParent.remove();
+                else e.target.remove();
+            }
+        }, true);
+
+        // 3. 页面加载后兜底检查
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('img').forEach(img => {
+                checkImage(img); // 立即检查一次
+
+                // 如果还没好，绑定一次性事件
+                if (!img.complete) {
+                    img.onload = function() { this.classList.add('loaded'); };
+                    img.onerror = function() { this.remove(); };
+                } else if (img.naturalWidth === 0) {
+                    // 已经 complete 但宽度为 0，说明已经坏了
+                    img.remove();
+                }
+            });
+        });
+    </script>
 </head>
 <body>
 
-<!-- 字体切换按钮 -->
 <div id="fontBtn" class="font-switch-btn" onclick="toggleFont()">
     Aa 宋体
 </div>
@@ -183,6 +243,18 @@
 <h2 th:text="${title}"></h2>
 
 <div id="contentArea" class="content font-style-serif" th:utext="${content}"></div>
+
+<!-- 4. 暴力补丁：在内容渲染完后立刻执行一次检查，解决缓存图片不显示问题 -->
+<script>
+    (function() {
+        var imgs = document.getElementById('contentArea').getElementsByTagName('img');
+        for (var i = 0; i < imgs.length; i++) {
+            if (imgs[i].complete) {
+                imgs[i].classList.add('loaded');
+            }
+        }
+    })();
+</script>
 
 <div class="nav-bar">
     <button onclick="saveBookmark()" class="btn btn-secondary">
@@ -209,15 +281,13 @@
     const contentArea = document.getElementById('contentArea');
     const fontBtn = document.getElementById('fontBtn');
 
-    const FONT_SERIF = 'font-style-serif'; // 宋体
-    const FONT_SANS = 'font-style-sans';   // 黑体
+    const FONT_SERIF = 'font-style-serif';
+    const FONT_SANS = 'font-style-sans';
     const STORAGE_KEY = 'epub_reader_font_style';
 
     function initFont() {
         const savedFont = localStorage.getItem(STORAGE_KEY);
-
         contentArea.classList.remove(FONT_SERIF, FONT_SANS);
-
         if (savedFont) {
             contentArea.classList.add(savedFont);
             updateBtnText(savedFont);
@@ -231,26 +301,19 @@
         if (tg.HapticFeedback) {
             tg.HapticFeedback.selectionChanged();
         }
-
-        // 检查当前是否包含宋体类
         if (contentArea.classList.contains(FONT_SERIF)) {
-            // 当前是宋体 -> 切换到黑体
             contentArea.classList.remove(FONT_SERIF);
-            contentArea.classList.add(FONT_SANS); // 确保这里使用了 .font-style-sans
-
+            contentArea.classList.add(FONT_SANS);
             localStorage.setItem(STORAGE_KEY, FONT_SANS);
             updateBtnText(FONT_SANS);
         } else {
-            // 当前是黑体 (或无) -> 切换到宋体
             contentArea.classList.remove(FONT_SANS);
             contentArea.classList.add(FONT_SERIF);
-
             localStorage.setItem(STORAGE_KEY, FONT_SERIF);
             updateBtnText(FONT_SERIF);
         }
     }
 
-    // 更新按钮显示的文字
     function updateBtnText(currentClass) {
         if (currentClass === FONT_SERIF) {
             fontBtn.textContent = "Aa 宋体";
@@ -259,7 +322,6 @@
         }
     }
 
-    // --- 消息提示逻辑 ---
     function showMessage(msg) {
         if (tg.isVersionAtLeast('6.2')) {
             tg.showPopup({message: msg});
@@ -273,11 +335,8 @@
             showMessage('无法获取书签信息 (Token丢失)');
             return;
         }
-
         const user = tg.initDataUnsafe && tg.initDataUnsafe.user;
-
         if (user) {
-            // === 场景 A: 在 Telegram 内 ===
             fetch('/api/miniapp/bookmark', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -298,22 +357,17 @@
                     console.error(err);
                     showMessage('❌ 网络错误');
                 });
-
         } else {
-            // === 场景 B: 在外部浏览器 (Chrome/Safari) ===
             if (!botUsername) {
                 alert("配置错误：未获取到 Bot Username");
                 return;
             }
-
-            // 构造 Deep Link: https://t.me/MyBot?start=bm_xxxxxx
             const deepLink = `https://t.me/${botUsername}?start=${bookmarkToken}`;
             window.location.href = deepLink;
         }
     }
 
     initFont();
-
 </script>
 </body>
 </html>
