@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title th:text="${title}">阅读</title>
+
+    <!-- 1. 引入 Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.8;
+            margin: 0;
+            padding: 20px;
+            /* 使用 Telegram 主题变量 */
+            background-color: var(--tg-theme-bg-color, #f9f9f9);
+            color: var(--tg-theme-text-color, #333);
+            /* 防止底部按钮贴边太紧 */
+            padding-bottom: 50px;
+        }
+
+        h2 {
+            margin-top: 0;
+            border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+            padding-bottom: 10px;
+        }
+
+        .content {
+            font-size: 18px;
+            text-align: justify;
+            margin-bottom: 30px;
+        }
+
+        .content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        /* --- 底部导航栏样式修改 --- */
+        .nav-bar {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+
+            /* 关键布局修改 */
+            display: flex;
+            justify-content: flex-end; /* 让内部元素靠右对齐 */
+            align-items: center;
+            gap: 15px; /* 按钮之间的间距 */
+        }
+
+        /* 按钮基础样式 */
+        .btn {
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            transition: opacity 0.2s;
+        }
+
+        .btn:active {
+            opacity: 0.7;
+        }
+
+        /* 主按钮 (下一页) */
+        .btn-primary {
+            background-color: var(--tg-theme-button-color, #0088cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+        }
+
+        /* 次要按钮 (保存书签) */
+        .btn-secondary {
+            background-color: var(--tg-theme-secondary-bg-color, #e4e4e4);
+            color: var(--tg-theme-text-color, #333);
+        }
+    </style>
+</head>
+<body>
+
+<h2 th:text="${title}"></h2>
+
+<div class="content" th:utext="${content}"></div>
+
+<div class="nav-bar">
+    <!-- 保存书签按钮 -->
+    <button onclick="saveBookmark()" class="btn btn-secondary">
+        🔖 保存进度
+    </button>
+
+    <!-- 下一页按钮 -->
+    <a th:if="${nextPageUrl}" th:href="${nextPageUrl}" class="btn btn-primary">
+        下一页 →
+    </a>
+
+    <!-- 如果没有下一页，显示提示 -->
+    <span th:unless="${nextPageUrl}" style="color: var(--tg-theme-hint-color); font-size: 14px;">
+            已读完
+        </span>
+</div>
+
+<script th:inline="javascript">
+    // 初始化 Web App
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    const bookmarkToken = [[${bookmarkToken}]] || '';
+
+    function saveBookmark() {
+        if (!bookmarkToken) {
+            tg.showPopup({message: '无法获取书签信息'});
+            return;
+        }
+
+        // 推荐：使用 fetch 发送请求给后端保存
+        // 假设你的后端有一个 POST /api/miniapp/bookmark 接口
+        fetch('/api/miniapp/bookmark', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                userId: tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 0,
+                token: bookmarkToken
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                tg.showPopup({message: '✅ 进度已保存'});
+            } else {
+                tg.showPopup({message: '❌ 保存失败: ' + data.error});
+            }
+        })
+        .catch(err => {
+            tg.showPopup({message: '❌ 网络错误'});
+        });
+
+    }
+</script>
+</body>
+</html>

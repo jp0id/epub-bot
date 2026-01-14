@@ -18,12 +18,11 @@ public class MiniAppController {
     private final BookmarkService bookmarkService;
 
     @Data
-    public static class BookInfo {
-        private String id;
-        private String name;
-        private String url;
-        private String firstPageTitle;
+    public static class BookmarkRequest {
+        private Long userId;
+        private String token;
     }
+
 
     @GetMapping("/health")
     public Map<String, Object> health() {
@@ -321,6 +320,42 @@ public class MiniAppController {
             response.put("timestamp", System.currentTimeMillis());
         }
 
+        return response;
+    }
+
+    @PostMapping("/bookmark")
+    public Map<String, Object> saveBookmark(@RequestBody BookmarkRequest request) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            if (request.getUserId() == null || request.getUserId() == 0) {
+                response.put("success", false);
+                response.put("error", "Invalid User ID");
+                return response;
+            }
+            if (request.getToken() == null || request.getToken().isBlank()) {
+                response.put("success", false);
+                response.put("error", "Token is required");
+                return response;
+            }
+
+            boolean saved = bookmarkService.addBookmarkByToken(request.getUserId(), request.getToken());
+
+            if (saved) {
+                response.put("success", true);
+                response.put("message", "Bookmark saved successfully");
+            } else {
+                response.put("success", false);
+                response.put("error", "Invalid or expired token");
+            }
+
+        } catch (Exception e) {
+            log.error("Error saving bookmark", e);
+            response.put("success", false);
+            response.put("error", "Internal server error: " + e.getMessage());
+        }
+
+        response.put("timestamp", System.currentTimeMillis());
         return response;
     }
 }

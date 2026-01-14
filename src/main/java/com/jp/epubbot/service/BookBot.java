@@ -167,7 +167,26 @@ public class BookBot extends TelegramLongPollingBot {
                 getFile.setFileId(doc.getFileId());
                 org.telegram.telegrambots.meta.api.objects.File file = execute(getFile);
                 log.info("file path: [{}], file id: [{}], file size: [{}]", file.getFilePath(), file.getFileId(), file.getFileSize());
-                String fileUrl = file.getFileUrl(getBotToken());
+                String fileUrl;
+                String botToken = getBotToken();
+                if (baseUrl.contains("telegram")) {
+                    fileUrl = file.getFileUrl(botToken);
+                } else {
+                    String rootUrl = baseUrl.replaceAll("/bot/?$", "");
+                    String rawFilePath = file.getFilePath();
+                    String relativeFilePath = rawFilePath;
+                    if (rawFilePath.contains(botToken)) {
+                        int tokenIndex = rawFilePath.indexOf(botToken);
+                        if (tokenIndex + botToken.length() < rawFilePath.length()) {
+                            relativeFilePath = rawFilePath.substring(tokenIndex + botToken.length());
+                            if (relativeFilePath.startsWith("/")) {
+                                relativeFilePath = relativeFilePath.substring(1);
+                            }
+                        }
+                    }
+                    fileUrl = rootUrl + "/file/bot" + botToken + "/" + relativeFilePath;
+                }
+
                 log.info("file url: [{}]", fileUrl);
                 try (InputStream in = new URL(fileUrl).openStream()) {
                     List<String> links = epubService.processEpub(in, doc.getFileName());

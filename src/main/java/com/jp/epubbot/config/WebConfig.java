@@ -2,18 +2,11 @@ package com.jp.epubbot.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/**
- * Web configuration for CORS and other web-related settings
- */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
-
-    /**
-     * Configure CORS for Telegram Mini App
-     * Telegram Web Apps can be loaded from various domains
-     */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
@@ -28,12 +21,18 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowCredentials(true)
                 .maxAge(3600);
 
-        // Allow all origins for static resources (for development)
-        // In production, you might want to restrict this
         registry.addMapping("/**")
                 .allowedOriginPatterns("*")
                 .allowedMethods("GET", "OPTIONS")
                 .allowedHeaders("*")
                 .maxAge(3600);
+    }
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // 将 /books/** 的请求映射到本地 data/books/ 目录
+        // 注意：file:data/books/ 指的是运行目录下的 data/books/
+        registry.addResourceHandler("/books/**")
+                .addResourceLocations("file:data/books/");
     }
 }

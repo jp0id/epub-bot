@@ -52,7 +52,7 @@ public class BookmarkService {
         if (!dir.exists()) dir.mkdirs();
     }
 
-    public String createBookmarkToken(String bookName, String chapterTitle, String url) {
+    public void createBookmarkToken(String bookName, String chapterTitle, String url) {
         String tokenStr = "bm_" + UUID.randomUUID().toString().substring(0, 8);
 
         BookmarkToken token = new BookmarkToken();
@@ -62,7 +62,6 @@ public class BookmarkService {
         token.setUrl(url);
 
         tokenRepo.save(token);
-        return tokenStr;
     }
 
     public BookmarkInfo getBookmarkByToken(String tokenStr) {
@@ -160,5 +159,22 @@ public class BookmarkService {
         }
 
         return books;
+    }
+
+    public boolean addBookmarkByToken(Long userId, String tokenStr) {
+        // 1. 根据 token 查找原始书籍信息
+        BookmarkInfo info = getBookmarkByToken(tokenStr);
+
+        if (info == null) {
+            log.warn("Token not found or expired: {}", tokenStr);
+            return false;
+        }
+
+        // 2. 保存为用户书签
+        // 这里可以加一个逻辑：先检查是否已经存在完全相同的书签，避免重复
+        // 目前直接调用 saveBookmarkForUser 即可
+        saveBookmarkForUser(userId, info);
+        log.info("Bookmark saved for user: {}, book: {}", userId, info.getBookName());
+        return true;
     }
 }
