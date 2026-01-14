@@ -261,7 +261,11 @@
         🔖 保存书签
     </button>
 
-    <a th:if="${nextPageUrl}" th:href="${nextPageUrl}" class="btn btn-primary">
+    <a th:if="${nextPageUrl}"
+       id="nextBtn"
+       th:href="${nextPageUrl}"
+       onclick="handleNextPage(event)"
+       class="btn btn-primary">
         下一页 →
     </a>
 
@@ -275,15 +279,102 @@
     tg.ready();
     tg.expand();
 
-    const bookmarkToken = [[${bookmarkToken}]] || '';
-    const botUsername = [[${botUsername}]] || '';
+    let bookmarkToken = [[${bookmarkToken}]] || '';
+    let botUsername = [[${botUsername}]] || '';
+    let nextPageUrl = [[${nextPageUrl}]];
 
     const contentArea = document.getElementById('contentArea');
     const fontBtn = document.getElementById('fontBtn');
+    const titleElem = document.querySelector('h2'); // 获取标题元素
+    const nextBtn = document.getElementById('nextBtn'); // 获取下一页按钮
 
     const FONT_SERIF = 'font-style-serif';
     const FONT_SANS = 'font-style-sans';
     const STORAGE_KEY = 'epub_reader_font_style';
+
+    let preloadedDoc = null; // 用于存储后台下载好的下一页 DOM
+
+
+    function prefetchNext() {
+        if (!nextPageUrl) return;
+
+        console.log('开始预加载下一页:', nextPageUrl);
+        fetch(nextPageUrl)
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                preloadedDoc = parser.parseFromString(html, 'text/html');
+                console.log('下一页预加载完成');
+            })
+            .catch(err => console.error('预加载失败:', err));
+    }
+
+
+    function handleNextPage(e) {
+        if (!preloadedDoc || !nextPageUrl) {
+            return;
+        }
+
+        e.preventDefault();
+
+        if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+
+        swapContent(preloadedDoc);
+
+        window.scrollTo(0, 0);
+
+        preloadedDoc = null;
+        if (nextPageUrl) {
+            prefetchNext();
+        }
+    }
+
+    function swapContent(doc) {
+        const newTitle = doc.querySelector('h2').innerText;
+        titleElem.innerText = newTitle;
+        document.title = newTitle; // 更新浏览器标题
+
+        const newContent = doc.getElementById('contentArea').innerHTML;
+        contentArea.innerHTML = newContent;
+
+
+        const newNextBtn = doc.getElementById('nextBtn');
+        if (newNextBtn) {
+            nextPageUrl = newNextBtn.getAttribute('href');
+            nextBtn.setAttribute('href', nextPageUrl);
+            nextBtn.style.display = 'inline-flex'; // 确保显示
+
+            const endSpan = document.querySelector('.nav-bar span');
+            if(endSpan) endSpan.remove(); // 移除旧的"完"
+        } else {
+            nextPageUrl = null;
+            nextBtn.style.display = 'none';
+        }
+
+        const scripts = doc.querySelectorAll('script');
+        scripts.forEach(s => {
+            const match = s.innerText.match(/const bookmarkToken = '(.*?)'/); // 匹配服务端渲染的 Token
+            if (match && match[1]) {
+                bookmarkToken = match[1];
+            }
+        });
+
+        initImages();
+    }
+
+    function initImages() {
+        const imgs = contentArea.getElementsByTagName('img');
+        for (let i = 0; i < imgs.length; i++) {
+            const img = imgs[i];
+
+            img.onerror = function() { this.remove(); };
+            img.onload = function() { this.classList.add('loaded'); };
+
+            if (img.complete && img.naturalWidth > 0) {
+                img.classList.add('loaded');
+            }
+        }
+    }
 
     function initFont() {
         const savedFont = localStorage.getItem(STORAGE_KEY);
@@ -298,9 +389,8 @@
     }
 
     function toggleFont() {
-        if (tg.HapticFeedback) {
-            tg.HapticFeedback.selectionChanged();
-        }
+        if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+
         if (contentArea.classList.contains(FONT_SERIF)) {
             contentArea.classList.remove(FONT_SERIF);
             contentArea.classList.add(FONT_SANS);
@@ -347,11 +437,8 @@
             })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
-                        showMessage('✅ 书签已保存');
-                    } else {
-                        showMessage('❌ 保存失败: ' + (data.error || '未知错误'));
-                    }
+                    if (data.success) showMessage('✅ 书签已保存');
+                    else showMessage('❌ 保存失败: ' + (data.error || '未知错误'));
                 })
                 .catch(err => {
                     console.error(err);
@@ -362,12 +449,16 @@
                 alert("配置错误：未获取到 Bot Username");
                 return;
             }
-            const deepLink = `https://t.me/${botUsername}?start=${bookmarkToken}`;
-            window.location.href = deepLink;
+            window.location.href = `https://t.me/${botUsername}?start=${bookmarkToken}`;
         }
     }
 
     initFont();
+
+    setTimeout(() => {
+        prefetchNext();
+    }, 1000);
+
 </script>
 </body>
 </html>
