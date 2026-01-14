@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * @Author: J.P
@@ -24,4 +25,7 @@ public interface BookmarkTokenRepository extends JpaRepository<BookmarkToken, St
     @Modifying
     @Query("DELETE FROM BookmarkToken where bookName = :bookName")
     void deleteByBookName(String bookName);
+
+    @Query("SELECT b FROM BookmarkToken b WHERE b.url LIKE %:urlSuffix")
+    Optional<BookmarkToken> findByUrlSuffix(String urlSuffix);
 }

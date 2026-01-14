@@ -1,5 +1,6 @@
 package com.jp.epubbot.controller;
 
+import com.jp.epubbot.service.BookmarkService;
 import com.jp.epubbot.service.LocalBookService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +14,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 public class ReadController {
 
     private final LocalBookService localBookService;
+
+    private final BookmarkService bookmarkService;
+
 
     @Value("${telegram.bot.username}")
     private String botUsername;
@@ -32,11 +36,17 @@ public class ReadController {
             model.addAttribute("nextPageUrl", "/read/" + bookId + "/" + (pageIndex + 1));
         }
 
+        // 1. 获取当前页面的 Token
+        String token = bookmarkService.findTokenByPage(bookId, pageIndex);
+
+        model.addAttribute("bookmarkToken", token);
+        model.addAttribute("botUsername", botUsername);
+
+        model.addAttribute("content", content);
+
+        // 这里的 bookmarkLink 是旧逻辑，可以保留作为备用，但主要使用上面的 token
         String deepLinkParam = "loc_" + bookId + "_" + pageIndex;
         String bookmarkLink = "https://t.me/" + botUsername + "?start=" + deepLinkParam;
-
-//        model.addAttribute("title", "阅读模式");
-        model.addAttribute("content", content);
         model.addAttribute("bookmarkLink", bookmarkLink);
 
         return "read";

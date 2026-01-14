@@ -177,4 +177,12 @@ public class BookmarkService {
         log.info("Bookmark saved for user: {}, book: {}", userId, info.getBookName());
         return true;
     }
+
+    public String findTokenByPage(String bookId, int pageIndex) {
+        // 构造 URL 后缀，例如: /read/abc12345/1
+        String suffix = "/read/" + bookId + "/" + pageIndex;
+        return tokenRepo.findByUrlSuffix(suffix)
+                .map(BookmarkToken::getToken)
+                .orElse(null);
+    }
 }

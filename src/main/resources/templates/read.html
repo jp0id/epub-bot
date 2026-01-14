@@ -11,76 +11,109 @@
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.8;
+            line-height: 1.8; /* 增加行高，让阅读更舒适 */
             margin: 0;
             padding: 20px;
-            /* 使用 Telegram 主题变量 */
-            background-color: var(--tg-theme-bg-color, #f9f9f9);
-            color: var(--tg-theme-text-color, #333);
+
+            /* --- 核心修改：护眼配色 --- */
+            /* 背景色：米黄色 (护眼模式常用色) */
+            background-color: #FAF9DE;
+            /* 文字颜色：深灰 (避免纯黑 #000 带来的强烈对比刺眼) */
+            color: #2c3e50;
+
             /* 防止底部按钮贴边太紧 */
-            padding-bottom: 50px;
+            padding-bottom: 80px;
+        }
+
+        /* 针对夜间模式的适配 (可选)
+           如果 Telegram 是深色模式，自动切换为深色护眼背景
+        */
+        @media (prefers-color-scheme: dark) {
+            body {
+                /* 深灰色背景，比纯黑更柔和 */
+                background-color: #1e1e1e;
+                /* 浅灰色文字 */
+                color: #b0b0b0;
+            }
         }
 
         h2 {
             margin-top: 0;
-            border-bottom: 1px solid var(--tg-theme-hint-color, #e0e0e0);
-            padding-bottom: 10px;
+            /* 标题颜色稍微深一点 */
+            color: #1a1a1a;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            font-weight: 600;
         }
 
+        /* 优化正文阅读体验 */
         .content {
-            font-size: 18px;
-            text-align: justify;
+            font-size: 19px; /* 稍微调大字号 */
+            text-align: justify; /* 两端对齐 */
             margin-bottom: 30px;
+            /* 限制最大宽度，防止在大屏幕上单行文字过长导致眼球疲劳 */
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            letter-spacing: 0.02em; /* 字间距微调 */
         }
 
         .content img {
             max-width: 100%;
             height: auto;
             border-radius: 8px;
-            margin: 10px 0;
+            margin: 15px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* 给图片加一点阴影 */
         }
 
-        /* --- 底部导航栏样式修改 --- */
+        /* --- 底部导航栏样式 --- */
         .nav-bar {
             margin-top: 40px;
             padding-top: 20px;
-            border-top: 1px solid var(--tg-theme-hint-color, #e0e0e0);
+            border-top: 1px solid rgba(0,0,0,0.1);
 
-            /* 关键布局修改 */
+            /* 限制导航栏宽度与正文一致 */
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+
             display: flex;
-            justify-content: flex-end; /* 让内部元素靠右对齐 */
+            justify-content: space-between; /* 改为两端对齐，左边放保存，右边放下一页 */
             align-items: center;
-            gap: 15px; /* 按钮之间的间距 */
         }
 
         /* 按钮基础样式 */
         .btn {
             text-decoration: none;
-            padding: 10px 20px;
-            border-radius: 10px;
-            font-size: 15px;
-            font-weight: 500;
+            padding: 12px 24px; /* 按钮大一点，方便点击 */
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
             border: none;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
-            transition: opacity 0.2s;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .btn:active {
-            opacity: 0.7;
+            transform: translateY(1px);
+            box-shadow: none;
         }
 
-        /* 主按钮 (下一页) */
+        /* 主按钮 (下一页) - 使用 Telegram 主题色，或者自定义一个柔和的蓝色 */
         .btn-primary {
-            background-color: var(--tg-theme-button-color, #0088cc);
-            color: var(--tg-theme-button-text-color, #ffffff);
+            background-color: #5b8cff; /* 柔和的蓝色 */
+            color: #ffffff;
         }
 
-        /* 次要按钮 (保存书签) */
+        /* 次要按钮 (保存书签) - 使用淡雅的颜色 */
         .btn-secondary {
-            background-color: var(--tg-theme-secondary-bg-color, #e4e4e4);
-            color: var(--tg-theme-text-color, #333);
+            background-color: #e8e4c9; /* 比背景稍深的米色 */
+            color: #5d5d5d;
+            border: 1px solid #d4d0b8;
         }
     </style>
 </head>
@@ -113,38 +146,64 @@
     tg.ready();
     tg.expand();
 
+    // 获取后端传来的变量
     const bookmarkToken = [[${bookmarkToken}]] || '';
+    const botUsername = [[${botUsername}]] || '';
+
+    function showMessage(msg) {
+        if (tg.isVersionAtLeast('6.2')) {
+            tg.showPopup({message: msg});
+        } else {
+            alert(msg);
+        }
+    }
 
     function saveBookmark() {
         if (!bookmarkToken) {
-            tg.showPopup({message: '无法获取书签信息'});
+            showMessage('无法获取书签信息 (Token丢失)');
             return;
         }
 
-        // 推荐：使用 fetch 发送请求给后端保存
-        // 假设你的后端有一个 POST /api/miniapp/bookmark 接口
-        fetch('/api/miniapp/bookmark', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                userId: tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : 0,
-                token: bookmarkToken
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if(data.success) {
-                tg.showPopup({message: '✅ 进度已保存'});
-            } else {
-                tg.showPopup({message: '❌ 保存失败: ' + data.error});
-            }
-        })
-        .catch(err => {
-            tg.showPopup({message: '❌ 网络错误'});
-        });
+        // 1. 判断是否在 Telegram Web App 环境中
+        // tg.initDataUnsafe.user 只有在 Telegram 内打开时才存在
+        const user = tg.initDataUnsafe && tg.initDataUnsafe.user;
 
+        if (user) {
+            // === 场景 A: 在 Telegram 内 ===
+            // 直接调用 API 静默保存
+            fetch('/api/miniapp/bookmark', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    userId: user.id,
+                    token: bookmarkToken
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showMessage('✅ 进度已保存');
+                    } else {
+                        showMessage('❌ 保存失败: ' + (data.error || '未知错误'));
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    showMessage('❌ 网络错误');
+                });
+
+        } else {
+            // === 场景 B: 在外部浏览器 (Chrome/Safari) ===
+            // 跳转到 Telegram Bot 进行保存
+            if (!botUsername) {
+                alert("配置错误：未获取到 Bot Username");
+                return;
+            }
+
+            // 构造 Deep Link: https://t.me/MyBot?start=bm_xxxxxx
+            const deepLink = `https://t.me/${botUsername}?start=${bookmarkToken}`;
+            window.location.href = deepLink;
+        }
     }
 </script>
 </body>
