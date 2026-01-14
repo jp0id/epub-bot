@@ -107,55 +107,59 @@ public class EpubService {
         return pageUrls;
     }
 
-    /**
-     * 容错加载：
-     * 使用 ZipFile 而不是 ZipInputStream。
-     * ZipFile 基于中央目录索引，即使中间有坏文件，也能跳过并读取后续的关键文件。
-     */
     private Book loadEpubLeniently(byte[] data) throws IOException {
-        File tempFile = File.createTempFile("epub_repair_" + UUID.randomUUID(), ".epub");
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
+             ZipInputStream zis = new ZipInputStream(bais);
+             ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ZipOutputStream zos = new ZipOutputStream(baos)) {
 
-        try {
-            Files.write(tempFile.toPath(), data);
+            ZipEntry entry;
+            byte[] buffer = new byte[4096];
 
-            try (ZipFile zipFile = new ZipFile(tempFile);
-                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                 ZipOutputStream zos = new ZipOutputStream(baos)) {
-
-                Enumeration<? extends ZipEntry> entries = zipFile.entries();
-
-                while (entries.hasMoreElements()) {
-                    ZipEntry entry = entries.nextElement();
-                    try {
-                        InputStream is = zipFile.getInputStream(entry);
-
-                        ZipEntry newEntry = new ZipEntry(entry.getName());
-                        zos.putNextEntry(newEntry);
-
-                        try {
-                            StreamUtils.copy(is, zos);
-                        } catch (Exception e) {
-                            log.warn("修复时丢弃损坏的文件内容: {}", entry.getName());
-                        } finally {
-                            is.close();
-                        }
-
-                        zos.closeEntry();
-                    } catch (Exception e) {
-                        log.warn("无法读取 ZIP 条目: {}, 跳过", entry.getName());
-                        try { zos.closeEntry(); } catch (Exception ignored) {}
-                    }
+            // 循环读取每一个文件条目
+            while (true) {
+                try {
+                    // 尝试获取下一个文件头
+                    // 如果 ZIP 结构损坏，这里可能会抛错，我们需要捕获并尝试继续（虽然通常这里报错就意味着流结束了）
+                    entry = zis.getNextEntry();
+                    if (entry == null) break;
+                } catch (Exception e) {
+                    log.warn("ZIP 流结构异常，停止读取后续内容: {}", e.getMessage());
+                    break;
                 }
 
-                zos.finish();
+                try {
+                    // 在新 ZIP 中创建对应的条目
+                    ZipEntry newEntry = new ZipEntry(entry.getName());
+                    zos.putNextEntry(newEntry);
 
-                log.info("EPUB 结构重组完成，尝试重新解析...");
-                return new EpubReader().readEpub(new ByteArrayInputStream(baos.toByteArray()));
+                    // === 核心：带异常捕获的流复制 ===
+                    int len;
+                    try {
+                        while ((len = zis.read(buffer)) > 0) {
+                            zos.write(buffer, 0, len);
+                        }
+                    } catch (Exception e) {
+                        // 关键点：如果在读取文件内容（read）时发生 CRC 校验失败
+                        // 我们捕获它，记录日志，然后不做任何处理
+                        // 循环会终止，代码会走到下面的 zos.closeEntry()
+                        // 这样，这个损坏的文件会被截断保存（只保留了坏掉之前的部分），但 ZIP 结构依然是完整的
+                        log.warn("文件内容损坏 (CRC/截断)，已跳过剩余部分: {}", entry.getName());
+                    }
+
+                    zos.closeEntry();
+                    zis.closeEntry();
+                } catch (Exception e) {
+                    log.warn("写入 ZIP 条目失败: {}, 跳过", entry.getName());
+                }
             }
-        } finally {
-            if (tempFile.exists()) {
-                tempFile.delete();
-            }
+
+            zos.finish();
+
+            // 此时 baos 中包含了一个重新生成的、结构合法的 ZIP 文件（即使某些图片只有一半）
+            // 再次尝试解析
+            log.info("EPUB 流式修复完成，尝试重新解析...");
+            return new EpubReader().readEpub(new ByteArrayInputStream(baos.toByteArray()));
         }
     }
 

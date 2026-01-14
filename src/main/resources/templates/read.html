@@ -75,6 +75,7 @@
             margin: 15px auto;
             display: block;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            /* 默认显示，JS会处理加载失败的情况 */
         }
 
         /* --- 悬浮字体切换按钮 --- */
@@ -199,6 +200,20 @@
 </div>
 
 <script th:inline="javascript">
+    // --- 核心修改：全局图片错误监听 ---
+    // 必须在脚本最开始执行，且使用 useCapture=true
+    window.addEventListener('error', function(e) {
+        // 检查事件源是否为 IMG 标签
+        if (e.target && e.target.tagName === 'IMG') {
+            // 1. 隐藏图片
+            e.target.style.display = 'none';
+            // 2. 彻底移除元素，消除 margin 带来的空白间距
+            e.target.remove();
+            // 可选：在控制台记录，方便调试
+            // console.log('Image load failed, removed:', e.target.src);
+        }
+    }, true); // true 表示在捕获阶段监听，因为 error 事件不冒泡
+
     const tg = window.Telegram.WebApp;
     tg.ready();
     tg.expand();
@@ -236,7 +251,7 @@
         if (contentArea.classList.contains(FONT_SERIF)) {
             // 当前是宋体 -> 切换到黑体
             contentArea.classList.remove(FONT_SERIF);
-            contentArea.classList.add(FONT_SANS); // 确保这里使用了 .font-style-sans
+            contentArea.classList.add(FONT_SANS);
 
             localStorage.setItem(STORAGE_KEY, FONT_SANS);
             updateBtnText(FONT_SANS);
