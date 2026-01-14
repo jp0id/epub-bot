@@ -46,24 +46,79 @@
             text-align: center;
         }
 
-        .test-text {
-            font-size: 3rem;
-            font-weight: bold;
-            color: #4a5568;
-            margin: 30px 0;
-            padding: 20px;
-            border: 3px dashed #cbd5e0;
-            border-radius: 15px;
-            background: #f7fafc;
-            text-align: center;
+        .search-container {
+            margin: 20px auto 30px auto; /* 上下间距 */
+            max-width: 600px;            /* 限制最大宽度 */
+            width: 100%;
+            padding: 0 10px;             /* 防止在手机上贴边 */
         }
 
-        .info {
-            color: #718096;
-            line-height: 1.6;
-            margin-top: 30px;
+        .books-search {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            width: 100%;
+            background: #f7fafc;       /* 给搜索条加个浅底色 */
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .books-search input {
+            flex: 1;
+            padding: 12px 15px;        /* 输入框大一点 */
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
             font-size: 1rem;
-            text-align: center;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .books-search input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: white;
+        }
+
+        .books-search button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: background 0.3s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .books-search button:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+
+        .btn-clear {
+            background: #e2e8f0 !important;
+            color: #718096 !important;
+            padding: 10px 15px !important; /* 清空按钮稍微小一点 */
+        }
+
+        .btn-clear:hover {
+            background: #cbd5e0 !important;
+        }
+
+        .books-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
         }
 
         .buttons-container {
@@ -116,69 +171,10 @@
             display: block;
         }
 
-        .books-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #e2e8f0;
-        }
-
         .books-title {
             font-size: 1.5rem;
             font-weight: bold;
             color: #2d3748;
-        }
-
-        .books-search {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            flex: 1; /* 占据剩余空间 */
-            min-width: 200px; /* 最小宽度 */
-            max-width: 400px; /* 最大宽度 */
-        }
-
-        .books-search input {
-            flex: 1;
-            padding: 8px 12px;
-            border: 1px solid #cbd5e0;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .books-search input:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .books-search button {
-            padding: 8px 15px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: background 0.3s;
-            white-space: nowrap; /* 防止文字换行 */
-        }
-
-        .btn-clear {
-            background: #e2e8f0 !important;
-            color: #718096 !important;
-        }
-
-        .btn-clear:hover {
-            background: #cbd5e0 !important;
-        }
-
-        .books-search button:hover {
-            background: #5a67d8;
         }
 
         .books-count {
@@ -192,20 +188,6 @@
         .books-list {
             display: grid;
             gap: 15px;
-        }
-
-        .book-card {
-            background: #f7fafc;
-            border-radius: 10px;
-            padding: 20px;
-            border: 1px solid #e2e8f0;
-            transition: all 0.3s ease;
-        }
-
-        .book-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-            border-color: #667eea;
         }
 
         .book-name {
@@ -462,7 +444,7 @@
 </head>
 <body>
 <div class="container">
-    <h1>EPUB Bot Mini App</h1>
+    <h1>EPUB Reader Bot App</h1>
     <div class="buttons-container">
         <button class="btn btn-primary" onclick="loadAllBooks()">
             📚 所有书籍
@@ -478,14 +460,21 @@
         </button>
     </div>
 
+    <div class="search-container">
+        <div class="books-search">
+            <input type="text" id="searchInput" placeholder="输入书名搜索..." onkeyup="handleSearchKey(event)">
+            <button onclick="performSearch()">
+                🔍 搜索
+            </button>
+            <button onclick="clearSearch()" class="btn-clear" title="清空搜索">
+                ✕
+            </button>
+        </div>
+    </div>
+
     <div id="booksSection" class="books-section">
         <div class="books-header">
             <div class="books-title">书籍列表</div>
-            <div class="books-search">
-                <input type="text" id="searchInput" placeholder="搜索书名..." onkeyup="handleSearchKey(event)">
-                <button onclick="performSearch()">🔍 搜索</button>
-                <button onclick="clearSearch()" class="btn-clear" title="清空搜索">✕</button>
-            </div>
             <div class="books-count" id="booksCount">0 books</div>
         </div>
 

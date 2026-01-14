@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -29,6 +31,8 @@ public class BookmarkService {
 
     private final BookmarkTokenRepository tokenRepo;
     private final UserBookmarkRepository bookmarkRepo;
+    private final LocalBookService localBookService;
+
     private List<String> admins;
 
     @Data
@@ -101,16 +105,6 @@ public class BookmarkService {
         }
     }
 
-    @Transactional
-    public boolean deleteBook(String bookName, Long userId) {
-        if (admins.isEmpty() || admins.contains(String.valueOf(userId))) {
-            tokenRepo.deleteByBookName(bookName);
-            return true;
-        } else {
-            return false;
-        }
-    }
-
     // 对应 /list 命令
     public String findAllBooks() {
         List<BookmarkToken> books = tokenRepo.findAllFirstChapters();
@@ -162,7 +156,6 @@ public class BookmarkService {
     }
 
     public boolean addBookmarkByToken(Long userId, String tokenStr) {
-        // 1. 根据 token 查找原始书籍信息
         BookmarkInfo info = getBookmarkByToken(tokenStr);
 
         if (info == null) {
@@ -170,9 +163,6 @@ public class BookmarkService {
             return false;
         }
 
-        // 2. 保存为用户书签
-        // 这里可以加一个逻辑：先检查是否已经存在完全相同的书签，避免重复
-        // 目前直接调用 saveBookmarkForUser 即可
         saveBookmarkForUser(userId, info);
         log.info("Bookmark saved for user: {}, book: {}", userId, info.getBookName());
         return true;
@@ -185,4 +175,44 @@ public class BookmarkService {
                 .map(BookmarkToken::getToken)
                 .orElse(null);
     }
+
+    @Transactional
+    public boolean deleteBook(String bookName, Long userId) {
+        // 鉴权逻辑
+        if (admins.isEmpty() || admins.contains(String.valueOf(userId))) {
+
+            try {
+                BookmarkToken token = tokenRepo.findFirstByBookName(bookName);
+
+                if (token != null && token.getUrl() != null) {
+                    String bookId = extractBookIdFromUrl(token.getUrl());
+
+                    if (bookId != null) {
+                        log.info("正在删除书籍文件, BookName: {}, BookId: {}", bookName, bookId);
+                        localBookService.deleteBookDirectory(bookId);
+                    }
+                }
+            } catch (Exception e) {
+                log.error("删除文件失败，但继续删除数据库记录", e);
+            }
+            tokenRepo.deleteByBookName(bookName);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private String extractBookIdFromUrl(String url) {
+        try {
+            Pattern pattern = Pattern.compile("/read/([^/]+)/");
+            Matcher matcher = pattern.matcher(url);
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
+        } catch (Exception e) {
+            log.warn("解析 BookId 失败: {}", url);
+        }
+        return null;
+    }
+
 }

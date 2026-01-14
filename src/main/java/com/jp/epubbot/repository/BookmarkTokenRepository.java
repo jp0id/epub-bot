@@ -28,4 +28,7 @@ public interface BookmarkTokenRepository extends JpaRepository<BookmarkToken, St
 
     @Query("SELECT b FROM BookmarkToken b WHERE b.url LIKE %:urlSuffix")
     Optional<BookmarkToken> findByUrlSuffix(String urlSuffix);
+
+    BookmarkToken findFirstByBookName(String bookName);
+
 }
