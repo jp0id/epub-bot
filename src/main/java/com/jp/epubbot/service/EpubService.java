@@ -17,10 +17,13 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
@@ -104,33 +107,55 @@ public class EpubService {
         return pageUrls;
     }
 
+    /**
+     * 容错加载：
+     * 使用 ZipFile 而不是 ZipInputStream。
+     * ZipFile 基于中央目录索引，即使中间有坏文件，也能跳过并读取后续的关键文件。
+     */
     private Book loadEpubLeniently(byte[] data) throws IOException {
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
-             ZipInputStream zis = new ZipInputStream(bais);
-             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-             ZipOutputStream zos = new ZipOutputStream(baos)) {
+        File tempFile = File.createTempFile("epub_repair_" + UUID.randomUUID(), ".epub");
 
-            ZipEntry entry;
-            byte[] buffer = new byte[2048];
+        try {
+            Files.write(tempFile.toPath(), data);
 
-            while ((entry = zis.getNextEntry()) != null) {
-                try {
-                    ZipEntry newEntry = new ZipEntry(entry.getName());
-                    zos.putNextEntry(newEntry);
+            try (ZipFile zipFile = new ZipFile(tempFile);
+                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                 ZipOutputStream zos = new ZipOutputStream(baos)) {
 
-                    int len;
-                    while ((len = zis.read(buffer)) > 0) {
-                        zos.write(buffer, 0, len);
+                Enumeration<? extends ZipEntry> entries = zipFile.entries();
+
+                while (entries.hasMoreElements()) {
+                    ZipEntry entry = entries.nextElement();
+                    try {
+                        InputStream is = zipFile.getInputStream(entry);
+
+                        ZipEntry newEntry = new ZipEntry(entry.getName());
+                        zos.putNextEntry(newEntry);
+
+                        try {
+                            StreamUtils.copy(is, zos);
+                        } catch (Exception e) {
+                            log.warn("修复时丢弃损坏的文件内容: {}", entry.getName());
+                        } finally {
+                            is.close();
+                        }
+
+                        zos.closeEntry();
+                    } catch (Exception e) {
+                        log.warn("无法读取 ZIP 条目: {}, 跳过", entry.getName());
+                        try { zos.closeEntry(); } catch (Exception ignored) {}
                     }
-                    zos.closeEntry();
-                } catch (Exception e) {
-                    log.warn("丢弃损坏的文件: {}", entry.getName());
-                    zos.closeEntry();
                 }
-            }
-            zos.finish();
 
-            return new EpubReader().readEpub(new ByteArrayInputStream(baos.toByteArray()));
+                zos.finish();
+
+                log.info("EPUB 结构重组完成，尝试重新解析...");
+                return new EpubReader().readEpub(new ByteArrayInputStream(baos.toByteArray()));
+            }
+        } finally {
+            if (tempFile.exists()) {
+                tempFile.delete();
+            }
         }
     }
 
