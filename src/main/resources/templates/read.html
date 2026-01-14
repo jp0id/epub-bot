@@ -8,16 +8,51 @@
     <!-- 引入 Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
+    <script>
+        window.addEventListener('load', function(e) {
+            if (!e.target || !e.target.tagName) return;
+
+            const tag = e.target.tagName.toUpperCase();
+            if (tag === 'IMG' || tag === 'IMAGE') {
+                e.target.classList.add('loaded');
+            }
+        }, true);
+
+        window.addEventListener('error', function(e) {
+            if (!e.target || !e.target.tagName) return;
+
+            const tag = e.target.tagName.toUpperCase();
+            if (tag === 'IMG') {
+                e.target.remove();
+            }
+            else if (tag === 'IMAGE') {
+                const svgParent = e.target.closest('svg');
+                if (svgParent) {
+                    svgParent.remove();
+                } else {
+                    e.target.remove();
+                }
+            }
+        }, true);
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('img').forEach(img => {
+                if (img.complete) {
+                    if (img.naturalWidth > 0) img.classList.add('loaded');
+                    else img.remove();
+                }
+            });
+        });
+    </script>
+
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
             line-height: 1.8;
             margin: 0;
             padding: 20px;
-
             background-color: #FAF9DE;
             color: #2c3e50;
-
             padding-bottom: 100px;
             transition: background-color 0.3s, color 0.3s;
         }
@@ -37,7 +72,7 @@
             padding-bottom: 15px;
             margin-bottom: 20px;
             font-weight: 600;
-            padding-right: 80px; /* 防止标题太长遮挡右上角按钮 */
+            padding-right: 80px;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -67,7 +102,9 @@
             letter-spacing: 0.02em;
         }
 
-        /* --- 图片样式优化 --- */
+        /* --- 图片样式优化 (核心修改) --- */
+
+        /* 1. 普通 IMG 标签 */
         .content img {
             max-width: 100%;
             height: auto;
@@ -75,7 +112,20 @@
             margin: 15px auto;
             display: block;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            /* 默认显示，JS会处理加载失败的情况 */
+            opacity: 0; /* 默认隐藏 */
+            transition: opacity 0.3s ease-in;
+        }
+
+        /* 2. SVG 内部的 IMAGE 标签 */
+        .content svg image {
+            opacity: 0; /* 默认隐藏 */
+            transition: opacity 0.3s ease-in;
+        }
+
+        /* 加载成功后显示 */
+        .content img.loaded,
+        .content svg image.loaded {
+            opacity: 1;
         }
 
         /* --- 悬浮字体切换按钮 --- */
@@ -152,13 +202,11 @@
             box-shadow: none;
         }
 
-        /* 下一页按钮 */
         .btn-primary {
             background-color: #5b8cff;
             color: #ffffff;
         }
 
-        /* 保存书签按钮 */
         .btn-secondary {
             background-color: #e8e4c9;
             color: #5d5d5d;
@@ -176,7 +224,6 @@
 </head>
 <body>
 
-<!-- 字体切换按钮 -->
 <div id="fontBtn" class="font-switch-btn" onclick="toggleFont()">
     Aa 宋体
 </div>
@@ -200,20 +247,6 @@
 </div>
 
 <script th:inline="javascript">
-    // --- 核心修改：全局图片错误监听 ---
-    // 必须在脚本最开始执行，且使用 useCapture=true
-    window.addEventListener('error', function(e) {
-        // 检查事件源是否为 IMG 标签
-        if (e.target && e.target.tagName === 'IMG') {
-            // 1. 隐藏图片
-            e.target.style.display = 'none';
-            // 2. 彻底移除元素，消除 margin 带来的空白间距
-            e.target.remove();
-            // 可选：在控制台记录，方便调试
-            // console.log('Image load failed, removed:', e.target.src);
-        }
-    }, true); // true 表示在捕获阶段监听，因为 error 事件不冒泡
-
     const tg = window.Telegram.WebApp;
     tg.ready();
     tg.expand();
@@ -224,15 +257,13 @@
     const contentArea = document.getElementById('contentArea');
     const fontBtn = document.getElementById('fontBtn');
 
-    const FONT_SERIF = 'font-style-serif'; // 宋体
-    const FONT_SANS = 'font-style-sans';   // 黑体
+    const FONT_SERIF = 'font-style-serif';
+    const FONT_SANS = 'font-style-sans';
     const STORAGE_KEY = 'epub_reader_font_style';
 
     function initFont() {
         const savedFont = localStorage.getItem(STORAGE_KEY);
-
         contentArea.classList.remove(FONT_SERIF, FONT_SANS);
-
         if (savedFont) {
             contentArea.classList.add(savedFont);
             updateBtnText(savedFont);
@@ -246,26 +277,19 @@
         if (tg.HapticFeedback) {
             tg.HapticFeedback.selectionChanged();
         }
-
-        // 检查当前是否包含宋体类
         if (contentArea.classList.contains(FONT_SERIF)) {
-            // 当前是宋体 -> 切换到黑体
             contentArea.classList.remove(FONT_SERIF);
             contentArea.classList.add(FONT_SANS);
-
             localStorage.setItem(STORAGE_KEY, FONT_SANS);
             updateBtnText(FONT_SANS);
         } else {
-            // 当前是黑体 (或无) -> 切换到宋体
             contentArea.classList.remove(FONT_SANS);
             contentArea.classList.add(FONT_SERIF);
-
             localStorage.setItem(STORAGE_KEY, FONT_SERIF);
             updateBtnText(FONT_SERIF);
         }
     }
 
-    // 更新按钮显示的文字
     function updateBtnText(currentClass) {
         if (currentClass === FONT_SERIF) {
             fontBtn.textContent = "Aa 宋体";
@@ -274,7 +298,6 @@
         }
     }
 
-    // --- 消息提示逻辑 ---
     function showMessage(msg) {
         if (tg.isVersionAtLeast('6.2')) {
             tg.showPopup({message: msg});
@@ -288,11 +311,8 @@
             showMessage('无法获取书签信息 (Token丢失)');
             return;
         }
-
         const user = tg.initDataUnsafe && tg.initDataUnsafe.user;
-
         if (user) {
-            // === 场景 A: 在 Telegram 内 ===
             fetch('/api/miniapp/bookmark', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -313,22 +333,17 @@
                     console.error(err);
                     showMessage('❌ 网络错误');
                 });
-
         } else {
-            // === 场景 B: 在外部浏览器 (Chrome/Safari) ===
             if (!botUsername) {
                 alert("配置错误：未获取到 Bot Username");
                 return;
             }
-
-            // 构造 Deep Link: https://t.me/MyBot?start=bm_xxxxxx
             const deepLink = `https://t.me/${botUsername}?start=${bookmarkToken}`;
             window.location.href = deepLink;
         }
     }
 
     initFont();
-
 </script>
 </body>
 </html>
