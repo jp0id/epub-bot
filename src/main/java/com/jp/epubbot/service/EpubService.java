@@ -12,6 +12,9 @@ import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -112,9 +115,9 @@ public class EpubService {
     }
 
     private void handleImagesLocal(Document doc, Book book, String currentResourceHref, String bookId) {
-        for (Element img : doc.select("img")) {
+        List<Element> images = new ArrayList<>(doc.select("img"));
+        for (Element img : images) {
             String src = img.attr("src");
-            // 忽略网络图片
             if (src.startsWith("http")) continue;
 
             try {
@@ -122,27 +125,52 @@ public class EpubService {
                 Resource imageRes = book.getResources().getByHref(imageHref);
 
                 if (imageRes != null) {
+                    byte[] data = imageRes.getData();
+
+                    if (data.length < 1024) {
+                        img.remove();
+                        continue;
+                    }
+
+                    if (isImageTooSmall(data)) {
+                        img.remove();
+                        continue;
+                    }
+
                     String fileName = new File(src).getName();
                     String safeFileName = UUID.randomUUID().toString().substring(0, 8) + "_" + fileName.replaceAll("[^a-zA-Z0-9.-]", "_");
 
-                    String localPath = localBookService.saveImage(bookId, safeFileName, imageRes.getData());
+                    String localPath = localBookService.saveImage(bookId, safeFileName, data);
 
                     if (localPath != null) {
                         img.attr("src", localPath);
-                        img.attr("style", "max-width: 100%;");
+                        img.attr("style", "max-width: 100%; height: auto; display: block; margin: 10px auto;");
                     } else {
-                        img.attr("src", "");
-                        img.attr("alt", "[图片保存失败]");
+                        img.remove();
                     }
                 } else {
-                    log.warn("Epub image resource not found: {}", imageHref);
-                    img.attr("src", "");
-                    img.attr("alt", "[图片丢失]");
+                    img.remove();
                 }
             } catch (Exception e) {
                 log.warn("图片处理异常: {}", src);
-                img.attr("src", "");
+                img.remove();
             }
+        }
+    }
+
+    /**
+     * 辅助方法：判断图片尺寸是否太小
+     */
+    private boolean isImageTooSmall(byte[] data) {
+        try {
+            ByteArrayInputStream bais = new ByteArrayInputStream(data);
+            BufferedImage bi = ImageIO.read(bais);
+            if (bi == null) {
+                return false;
+            }
+            return bi.getWidth() < 50 || bi.getHeight() < 50;
+        } catch (Exception e) {
+            return false;
         }
     }
 

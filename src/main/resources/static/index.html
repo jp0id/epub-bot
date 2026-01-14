@@ -133,28 +133,48 @@
 
         .books-search {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             align-items: center;
+            flex: 1; /* 占据剩余空间 */
+            min-width: 200px; /* 最小宽度 */
+            max-width: 400px; /* 最大宽度 */
         }
 
         .books-search input {
+            flex: 1;
             padding: 8px 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            font-size: 0.9rem;
-            min-width: 200px;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .books-search input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
         .books-search button {
-            padding: 8px 16px;
+            padding: 8px 15px;
             background: #667eea;
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             font-weight: bold;
             cursor: pointer;
             font-size: 0.9rem;
             transition: background 0.3s;
+            white-space: nowrap; /* 防止文字换行 */
+        }
+
+        .btn-clear {
+            background: #e2e8f0 !important;
+            color: #718096 !important;
+        }
+
+        .btn-clear:hover {
+            background: #cbd5e0 !important;
         }
 
         .books-search button:hover {
@@ -461,6 +481,11 @@
     <div id="booksSection" class="books-section">
         <div class="books-header">
             <div class="books-title">书籍列表</div>
+            <div class="books-search">
+                <input type="text" id="searchInput" placeholder="搜索书名..." onkeyup="handleSearchKey(event)">
+                <button onclick="performSearch()">🔍 搜索</button>
+                <button onclick="clearSearch()" class="btn-clear" title="清空搜索">✕</button>
+            </div>
             <div class="books-count" id="booksCount">0 books</div>
         </div>
 
@@ -618,6 +643,8 @@
         bookmarksErrorContainer.style.display = 'none';
     }
 
+    let currentSearchTerm = '';
+
     // Load all books from API with pagination
     async function loadAllBooks(page = currentBooksPage) {
         // Update current page
@@ -629,30 +656,35 @@
         booksList.innerHTML = '';
 
         try {
-            const response = await fetch(`${API_BASE}/books?page=${page}&size=10`);
+            let url = `${API_BASE}/books?page=${page}&size=10`;
+
+            if (currentSearchTerm && currentSearchTerm.trim() !== '') {
+                url += `&search=${encodeURIComponent(currentSearchTerm.trim())}`;
+            }
+            const response = await fetch(url);
             const data = await response.json();
 
             if (!response.ok || !data.success) {
                 throw new Error(data.error || 'Failed to load books');
             }
 
-            // Hide loading
             loading.style.display = 'none';
 
-            // Show books section
             booksSection.classList.add('visible');
             bookmarksSection.classList.remove('visible');
 
-            // Update count - show total count and current page info
             booksCount.textContent = `${data.totalCount} 本书`;
-            booksPaginationInfo.textContent = `第 ${page + 1} / ${data.totalPages} 页，共 ${data.totalCount} 本书`;
 
-            // Render books
+            let pageInfoText = `第 ${page + 1} / ${data.totalPages} 页，共 ${data.totalCount} 本书`;
+            if (currentSearchTerm) {
+                pageInfoText += ` (搜索: "${escapeHtml(currentSearchTerm)}")`;
+            }
+            booksPaginationInfo.innerHTML = pageInfoText; // 使用 innerHTML 以支持 escapeHtml
+
             if (data.books && data.books.length > 0) {
                 data.books.forEach(book => {
                     const bookElement = document.createElement('div');
                     bookElement.className = 'book-card';
-                    // 修改了这里：增加了 bookmark-actions 容器和删除按钮
                     bookElement.innerHTML = `
                             <div class="book-name">${escapeHtml(book.name)}</div>
                             <div class="bookmark-actions">
@@ -667,7 +699,11 @@
                     booksList.appendChild(bookElement);
                 });
             } else {
-                booksList.innerHTML = '<div class="loading">暂无书籍。上传EPUB文件即可开始阅读。</div>';
+                if (currentSearchTerm) {
+                    booksList.innerHTML = '<div class="loading">未找到匹配的书籍。</div>';
+                } else {
+                    booksList.innerHTML = '<div class="loading">暂无书籍。上传EPUB文件即可开始阅读。</div>';
+                }
             }
 
             updateBooksPagination(data.totalPages, page);
@@ -676,6 +712,26 @@
             showError(`错误: ${error.message}`);
         }
     }
+
+    function performSearch() {
+        const input = document.getElementById('searchInput');
+        currentSearchTerm = input.value;
+        loadAllBooks(0);
+    }
+
+    function clearSearch() {
+        const input = document.getElementById('searchInput');
+        input.value = '';
+        currentSearchTerm = '';
+        loadAllBooks(0);
+    }
+
+    function handleSearchKey(event) {
+        if (event.key === 'Enter') {
+            performSearch();
+        }
+    }
+
 
     // Update books pagination controls
     function updateBooksPagination(totalPages, currentPage) {
