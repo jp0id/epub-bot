@@ -21,7 +21,7 @@ public class ReadController {
     @Value("${telegram.bot.username}")
     private String botUsername;
 
-    @GetMapping("/read/{bookId}/{pageIndex}")
+    @GetMapping("/read/{bookId}/{pageIndex:\\d+}")
     public String readPage(@PathVariable String bookId,
                            @PathVariable int pageIndex,
                            Model model) {
@@ -36,7 +36,6 @@ public class ReadController {
             model.addAttribute("nextPageUrl", "/read/" + bookId + "/" + (pageIndex + 1));
         }
 
-        // 1. 获取当前页面的 Token
         String token = bookmarkService.findTokenByPage(bookId, pageIndex);
 
         model.addAttribute("bookmarkToken", token);
@@ -44,7 +43,6 @@ public class ReadController {
 
         model.addAttribute("content", content);
 
-        // 这里的 bookmarkLink 是旧逻辑，可以保留作为备用，但主要使用上面的 token
         String deepLinkParam = "loc_" + bookId + "_" + pageIndex;
         String bookmarkLink = "https://t.me/" + botUsername + "?start=" + deepLinkParam;
         model.addAttribute("bookmarkLink", bookmarkLink);

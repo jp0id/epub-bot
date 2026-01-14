@@ -114,24 +114,34 @@ public class EpubService {
     private void handleImagesLocal(Document doc, Book book, String currentResourceHref, String bookId) {
         for (Element img : doc.select("img")) {
             String src = img.attr("src");
+            // 忽略网络图片
             if (src.startsWith("http")) continue;
+
             try {
                 String imageHref = resolveHref(currentResourceHref, src);
                 Resource imageRes = book.getResources().getByHref(imageHref);
 
                 if (imageRes != null) {
                     String fileName = new File(src).getName();
-                    String safeFileName = UUID.randomUUID().toString().substring(0, 8) + "_" + fileName;
+                    String safeFileName = UUID.randomUUID().toString().substring(0, 8) + "_" + fileName.replaceAll("[^a-zA-Z0-9.-]", "_");
 
                     String localPath = localBookService.saveImage(bookId, safeFileName, imageRes.getData());
 
                     if (localPath != null) {
                         img.attr("src", localPath);
                         img.attr("style", "max-width: 100%;");
+                    } else {
+                        img.attr("src", "");
+                        img.attr("alt", "[图片保存失败]");
                     }
+                } else {
+                    log.warn("Epub image resource not found: {}", imageHref);
+                    img.attr("src", "");
+                    img.attr("alt", "[图片丢失]");
                 }
             } catch (Exception e) {
-                log.warn("图片处理失败: {}", src);
+                log.warn("图片处理异常: {}", src);
+                img.attr("src", "");
             }
         }
     }

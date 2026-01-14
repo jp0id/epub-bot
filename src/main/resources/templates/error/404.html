@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - 页面未找到</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            /* 护眼背景色 */
+            background-color: #FAF9DE;
+            color: #2c3e50;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        /* 深色模式适配 */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #1e1e1e;
+                color: #b0b0b0;
+            }
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 400px;
+        }
+
+        h1 {
+            font-size: 80px;
+            margin: 0;
+            color: #5b8cff; /* 蓝色强调 */
+            opacity: 0.8;
+        }
+
+        h2 {
+            margin-top: 10px;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            p { color: #888; }
+        }
+
+        .btn {
+            display: inline-block;
+            text-decoration: none;
+            background-color: #5b8cff;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(91, 140, 255, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 5px rgba(91, 140, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>404</h1>
+    <h2>哎呀，页面不见了</h2>
+    <p>你访问的章节可能不存在，或者书籍已被删除。具体可联系: https://t.me/pm_jp_bot</p>
+
+    <!-- 返回主页按钮 -->
+    <a href="/" class="btn">
+        🏠 返回主页
+    </a>
+</div>
+
+</body>
+</html>
