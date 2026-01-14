@@ -12,8 +12,8 @@ services:
       - TELEGRAM_BOT_USERNAME=你的BotName
       - APP_CHARS_PER_PAGE=4000
       - TELEGRAM_BOT_ADMINS=201728830,201728830
-      - TELEGRAM_BOT_BASE=https://api.telegram.org
-      - TELEGRAM_BOT_WEBAPP_URL=https://xxx.xx.com
+      - TELEGRAM_BOT_BASE=https://api.telegram.org/bot
+      - TELEGRAM_BOT_WEBAPP_URL=https://xxx.xx.com  # 必须是https协议，需要使用nginx等反向代理该服务
     volumes:
       - ./data:/app/data
     blkio_config:

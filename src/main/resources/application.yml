@@ -6,8 +6,8 @@ telegram:
     username: ""
     token: "7589476199:xxxx"
     admins: 201728830
-    base: "http://47.243.197.2:8081"
-    webapp-url: http://localhost:${server.port}
+    base: https://api.telegram.org/bot
+    webapp-url: https://xxx.xx.com  # 必须是https协议，需要使用nginx等反向代理该服务
 
 app:
   chars-per-page: 3000

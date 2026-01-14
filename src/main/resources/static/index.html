@@ -12,7 +12,9 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+            "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "SimHei",
+            "WenQuanYi Micro Hei", sans-serif;
             /* Default background (fallback) */
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             /* Telegram theme variables */
@@ -47,32 +49,37 @@
         }
 
         .search-container {
-            margin: 20px auto 30px auto; /* 上下间距 */
-            max-width: 600px;            /* 限制最大宽度 */
+            margin: 20px auto 30px auto;
+            max-width: 600px;
             width: 100%;
-            padding: 0 10px;             /* 防止在手机上贴边 */
+            padding: 0;
+            box-sizing: border-box;
         }
 
         .books-search {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             align-items: center;
             width: 100%;
             background: #f7fafc;       /* 给搜索条加个浅底色 */
-            padding: 10px;
+            padding: 8px;
             border-radius: 12px;
             border: 1px solid #e2e8f0;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-sizing: border-box; /* 关键：防止 padding 撑大宽度 */
         }
 
         .books-search input {
-            flex: 1;
-            padding: 12px 15px;        /* 输入框大一点 */
+            flex: 1; /* 占据剩余空间 */
+            min-width: 0; /* 关键！允许输入框无限缩小，防止撑破容器 */
+            padding: 10px 12px;
             border: 1px solid #cbd5e0;
             border-radius: 8px;
             font-size: 1rem;
             outline: none;
             transition: all 0.2s;
+            /* 解决 iOS 上输入框圆角可能不正常的问题 */
+            -webkit-appearance: none;
         }
 
         .books-search input:focus {
@@ -82,19 +89,20 @@
         }
 
         .books-search button {
-            padding: 10px 20px;
+            flex-shrink: 0;
+            padding: 10px 16px;
             background: #667eea;
             color: white;
             border: none;
             border-radius: 8px;
             font-weight: bold;
             cursor: pointer;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             transition: background 0.3s;
             white-space: nowrap;
             display: flex;
             align-items: center;
-            gap: 5px;
+            justify-content: center;
         }
 
         .books-search button:hover {
@@ -105,7 +113,26 @@
         .btn-clear {
             background: #e2e8f0 !important;
             color: #718096 !important;
-            padding: 10px 15px !important; /* 清空按钮稍微小一点 */
+            padding: 10px 12px !important; /* 稍微窄一点 */
+            font-size: 1.1rem !important; /* 叉号大一点 */
+            width: 40px; /* 固定宽度，变成正方形按钮 */
+        }
+
+        @media (max-width: 400px) {
+            .books-search {
+                gap: 5px;
+                padding: 5px;
+            }
+
+            .books-search input {
+                font-size: 0.9rem;
+                padding: 8px 10px;
+            }
+
+            .books-search button {
+                padding: 8px 12px;
+                font-size: 0.85rem;
+            }
         }
 
         .btn-clear:hover {
