@@ -80,6 +80,11 @@ public class EpubService {
                 for (Element child : body.children()) {
                     String childHtml = child.outerHtml();
                     int childLen = child.text().length();
+
+                    if (!child.select("img").isEmpty() || child.tagName().equalsIgnoreCase("img") || child.tagName().equalsIgnoreCase("svg")) {
+                        childLen += 1000;
+                    }
+
                     if (currentLength + childLen > charsPerPage && currentLength > 0) {
                         savePage(bookId, pageCounter, currentHtmlBuffer.toString());
                         String pageUrl = generateUrl(bookId, pageCounter);
