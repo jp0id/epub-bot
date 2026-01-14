@@ -11,16 +11,18 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StreamUtils;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 @Slf4j
 @Service
@@ -33,15 +35,19 @@ public class EpubService {
     @Value("${app.chars-per-page:3000}")
     private int charsPerPage;
 
-    @Value("${telegram.bot.username}")
-    private String botUsername;
-
     @Value("${telegram.bot.webapp-url:}")
     private String webAppUrl;
 
     public List<String> processEpub(InputStream epubStream, String fileName) throws Exception {
-        EpubReader epubReader = new EpubReader();
-        Book book = epubReader.readEpub(epubStream);
+        Book book;
+        try {
+            book = new EpubReader().readEpub(epubStream);
+        } catch (Exception e) {
+            log.warn("EPUB 解析遇到错误 (可能是图片损坏)，尝试容错模式加载: {}", e.getMessage());
+            byte[] epubData = StreamUtils.copyToByteArray(epubStream);
+            book = loadEpubLeniently(epubData);
+        }
+
         String bookTitle = (book.getTitle() != null && !book.getTitle().isEmpty()) ? book.getTitle() : fileName;
 
         String bookId = UUID.randomUUID().toString().replace("-", "");
@@ -60,19 +66,19 @@ public class EpubService {
                 String html = new String(res.getData(), StandardCharsets.UTF_8);
                 Document doc = Jsoup.parse(html);
                 Element body = doc.body();
+
                 body.select("script, style, meta, link, title, iframe, head").remove();
-                if (isContentEmpty(body)) {
-                    log.info("跳过空章节: {} (无有效内容)", res.getHref());
-                    continue;
-                }
+
+                if (isContentEmpty(body)) continue;
+
                 removeInvalidLinks(body);
                 handleImagesLocal(doc, book, res.getHref(), bookId);
-                body.html();
+
                 for (Element child : body.children()) {
                     String childHtml = child.outerHtml();
                     int childLen = child.text().length();
                     if (currentLength + childLen > charsPerPage && currentLength > 0) {
-                        savePage(bookId, pageCounter, bookTitle, currentHtmlBuffer.toString());
+                        savePage(bookId, pageCounter, currentHtmlBuffer.toString());
                         String pageUrl = generateUrl(bookId, pageCounter);
                         pageUrls.add(pageUrl);
                         bookmarkService.createBookmarkToken(bookTitle, bookTitle + " (" + pageCounter + ")", pageUrl);
@@ -84,21 +90,51 @@ public class EpubService {
                     currentLength += childLen;
                 }
             } catch (Exception e) {
-                log.error("解析章节失败", e);
+                log.error("解析章节失败: {}", res.getHref(), e);
             }
         }
 
         if (!currentHtmlBuffer.isEmpty()) {
-            savePage(bookId, pageCounter, bookTitle, currentHtmlBuffer.toString());
+            savePage(bookId, pageCounter, currentHtmlBuffer.toString());
             String pageUrl = generateUrl(bookId, pageCounter);
             pageUrls.add(pageUrl);
             bookmarkService.createBookmarkToken(bookTitle, bookTitle + " (" + pageCounter + ") - End", pageUrl);
         }
-        log.info("解析书籍: {} (ID: {}) 完成", bookTitle, bookId);
+
         return pageUrls;
     }
 
-    private void savePage(String bookId, int pageIndex, String title, String content) {
+    private Book loadEpubLeniently(byte[] data) throws IOException {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
+             ZipInputStream zis = new ZipInputStream(bais);
+             ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ZipOutputStream zos = new ZipOutputStream(baos)) {
+
+            ZipEntry entry;
+            byte[] buffer = new byte[2048];
+
+            while ((entry = zis.getNextEntry()) != null) {
+                try {
+                    ZipEntry newEntry = new ZipEntry(entry.getName());
+                    zos.putNextEntry(newEntry);
+
+                    int len;
+                    while ((len = zis.read(buffer)) > 0) {
+                        zos.write(buffer, 0, len);
+                    }
+                    zos.closeEntry();
+                } catch (Exception e) {
+                    log.warn("丢弃损坏的文件: {}", entry.getName());
+                    zos.closeEntry();
+                }
+            }
+            zos.finish();
+
+            return new EpubReader().readEpub(new ByteArrayInputStream(baos.toByteArray()));
+        }
+    }
+
+    private void savePage(String bookId, int pageIndex, String content) {
         localBookService.saveChapter(bookId, pageIndex, content);
     }
 
@@ -107,7 +143,6 @@ public class EpubService {
         if (base == null || base.isEmpty()) {
             base = "http://localhost:18088";
         }
-
         if (base.endsWith("/")) {
             base = base.substring(0, base.length() - 1);
         }
@@ -127,12 +162,7 @@ public class EpubService {
                 if (imageRes != null) {
                     byte[] data = imageRes.getData();
 
-                    if (data.length < 1024) {
-                        img.remove();
-                        continue;
-                    }
-
-                    if (isImageTooSmall(data)) {
+                    if (data.length < 1024 || isImageTooSmall(data)) {
                         img.remove();
                         continue;
                     }
@@ -158,16 +188,11 @@ public class EpubService {
         }
     }
 
-    /**
-     * 辅助方法：判断图片尺寸是否太小
-     */
     private boolean isImageTooSmall(byte[] data) {
         try {
             ByteArrayInputStream bais = new ByteArrayInputStream(data);
             BufferedImage bi = ImageIO.read(bais);
-            if (bi == null) {
-                return false;
-            }
+            if (bi == null) return false;
             return bi.getWidth() < 50 || bi.getHeight() < 50;
         } catch (Exception e) {
             return false;
@@ -189,14 +214,8 @@ public class EpubService {
 
     private boolean isContentEmpty(Element body) {
         if (body == null) return true;
-        if (body.hasText()) {
-            if (!body.text().trim().isEmpty()) {
-                return false;
-            }
-        }
-        if (!body.select("img").isEmpty()) {
-            return false;
-        }
+        if (body.hasText() && !body.text().trim().isEmpty()) return false;
+        if (!body.select("img").isEmpty()) return false;
         return body.select("svg").isEmpty();
     }
 

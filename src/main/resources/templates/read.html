@@ -186,7 +186,7 @@
 
 <div class="nav-bar">
     <button onclick="saveBookmark()" class="btn btn-secondary">
-        🔖 保存进度
+        🔖 保存书签
     </button>
 
     <a th:if="${nextPageUrl}" th:href="${nextPageUrl}" class="btn btn-primary">
@@ -289,7 +289,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        showMessage('✅ 进度已保存');
+                        showMessage('✅ 书签已保存');
                     } else {
                         showMessage('❌ 保存失败: ' + (data.error || '未知错误'));
                     }
