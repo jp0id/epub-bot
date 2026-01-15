@@ -358,4 +358,34 @@ public class MiniAppController {
         response.put("timestamp", System.currentTimeMillis());
         return response;
     }
+
+    @GetMapping("/book/pages")
+    public Map<String, Object> getBookPages(
+            @RequestParam String bookId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) { // 默认一页显示 50 条
+
+        Map<String, Object> response = new HashMap<>();
+        try {
+            if (bookId == null || bookId.isBlank()) {
+                response.put("success", false);
+                response.put("error", "Book ID is required");
+                return response;
+            }
+
+            Map<String, Object> result = bookmarkService.getBookPages(bookId, page, size);
+
+            response.put("success", true);
+            response.put("count", result.get("totalElements"));
+            response.put("totalPages", result.get("totalPages"));
+            response.put("currentPage", page);
+            response.put("pages", result.get("list"));
+
+        } catch (Exception e) {
+            log.error("Failed to get book pages", e);
+            response.put("success", false);
+            response.put("error", "Failed to retrieve pages");
+        }
+        return response;
+    }
 }

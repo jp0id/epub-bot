@@ -1,6 +1,8 @@
 package com.jp.epubbot.repository;
 
 import com.jp.epubbot.entity.BookmarkToken;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -33,4 +35,8 @@ public interface BookmarkTokenRepository extends JpaRepository<BookmarkToken, St
 
     @Query("SELECT COUNT(b) FROM BookmarkToken b WHERE b.url LIKE %:bookId%")
     int countByBookId(String bookId);
+
+
+    Page<BookmarkToken> findByUrlContaining(String urlPart, Pageable pageable);
+
 }

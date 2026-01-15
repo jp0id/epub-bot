@@ -9,6 +9,8 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -217,5 +219,40 @@ public class BookmarkService {
 
     public int getTotalPages(String bookId) {
         return tokenRepo.countByBookId("/read/" + bookId + "/");
+    }
+
+    public Map<String, Object> getBookPages(String bookId, int page, int size) {
+        String searchPath = "/read/" + bookId + "/";
+
+        Page<BookmarkToken> pageResult = tokenRepo.findByUrlContaining(searchPath, PageRequest.of(page, size));
+
+        List<Map<String, Object>> list = pageResult.getContent().stream()
+                .map(t -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("title", t.getChapterTitle());
+                    map.put("url", t.getUrl());
+                    map.put("page", extractPageIndexFromUrl(t.getUrl()));
+                    return map;
+                })
+                .sorted(Comparator.comparingInt(m -> (Integer) m.get("page")))
+                .collect(Collectors.toList());
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", list);
+        result.put("totalElements", pageResult.getTotalElements());
+        result.put("totalPages", pageResult.getTotalPages());
+        return result;
+    }
+
+    private int extractPageIndexFromUrl(String url) {
+        try {
+            Pattern pattern = Pattern.compile("/(\\d+)/?$");
+            Matcher matcher = pattern.matcher(url);
+            if (matcher.find()) {
+                return Integer.parseInt(matcher.group(1));
+            }
+        } catch (Exception ignore) {
+        }
+        return 0;
     }
 }

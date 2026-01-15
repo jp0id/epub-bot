@@ -464,6 +464,83 @@
                 justify-content: center;
             }
         }
+
+        /* --- 新增：目录按钮样式 (青色) --- */
+        .btn-info {
+            display: inline-block;
+            background: #38b2ac;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .btn-info:hover {
+            background: #319795;
+        }
+
+        /* --- 新增：章节列表样式 --- */
+        .chapter-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .chapter-item {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-decoration: none;
+            color: #333;
+        }
+
+        .chapter-item:hover {
+            background: #f7fafc;
+            border-color: #667eea;
+            transform: translateX(5px);
+        }
+
+        .chapter-title {
+            font-weight: 500;
+            font-size: 1rem;
+        }
+
+        .chapter-page {
+            font-size: 0.85rem;
+            color: #718096;
+            background: #edf2f7;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        /* 返回按钮 */
+        .back-btn {
+            background: transparent;
+            border: 1px solid #cbd5e0;
+            color: #4a5568;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .back-btn:hover {
+            background: #e2e8f0;
+        }
     </style>
 
     <!-- Telegram Web App SDK -->
@@ -547,6 +624,28 @@
                 <button id="bookmarksPrevPage" class="pagination-btn" disabled>上一页</button>
                 <div id="bookmarksPageNumbers" class="page-numbers"></div>
                 <button id="bookmarksNextPage" class="pagination-btn" disabled>下一页</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="chaptersSection" class="books-section">
+        <div class="books-header">
+            <div style="display: flex; align-items: center; flex: 1;">
+                <button class="back-btn" onclick="closeChapters()">← 返回</button>
+                <div class="books-title" id="chapterBookTitle" style="font-size: 1.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">页码列表</div>
+            </div>
+            <div class="books-count" id="chapterCount">0 章</div>
+        </div>
+
+        <div id="chaptersList" class="chapter-list">
+        </div>
+        <!-- 新增：章节列表的分页控件 -->
+        <div id="chaptersPagination" class="pagination" style="display: none;">
+            <div class="pagination-info" id="chaptersPaginationInfo"></div>
+            <div class="pagination-controls">
+                <button id="chaptersPrevPage" class="pagination-btn" disabled>上一页</button>
+                <div id="chaptersPageNumbers" class="page-numbers"></div>
+                <button id="chaptersNextPage" class="pagination-btn" disabled>下一页</button>
             </div>
         </div>
     </div>
@@ -707,6 +806,11 @@
                                 <a href="${escapeHtml(book.url)}" class="book-link" target="_blank">
                                     📚 阅读
                                 </a>
+
+                                <button class="btn-info" onclick="showBookChapters('${escapeHtml(book.name).replace(/'/g, "\\'")}', '${escapeHtml(book.url)}')">
+                                    📑 选页
+                                </button>
+
                                 <button class="delete-btn" onclick="deleteBook('${escapeHtml(book.name).replace(/'/g, "\\'")}')">
                                     🗑️ 删除
                                 </button>
@@ -1106,6 +1210,133 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    const chaptersSection = document.getElementById('chaptersSection');
+    const chaptersList = document.getElementById('chaptersList');
+    const chapterBookTitle = document.getElementById('chapterBookTitle');
+    const pageListCount = document.getElementById('pageListCount');
+
+    let previousSection = null;
+
+    const chaptersPagination = document.getElementById('chaptersPagination');
+    const chaptersPaginationInfo = document.getElementById('chaptersPaginationInfo');
+    const chaptersPrevPage = document.getElementById('chaptersPrevPage');
+    const chaptersNextPage = document.getElementById('chaptersNextPage');
+    const chaptersPageNumbers = document.getElementById('chaptersPageNumbers');
+
+    let currentChapterPage = 0;
+    let currentBookId = '';
+    let currentBookName = '';
+
+
+    function showBookChapters(bookName, bookUrl) {
+        // 提取 bookId
+        const match = bookUrl.match(/\/read\/([^\/]+)\//);
+        if (!match) {
+            alert("无法解析书籍ID");
+            return;
+        }
+        currentBookId = match[1];
+        currentBookName = bookName;
+
+        // 切换视图
+        if (booksSection.classList.contains('visible')) previousSection = booksSection;
+        else if (bookmarksSection.classList.contains('visible')) previousSection = bookmarksSection;
+        else previousSection = booksSection;
+
+        booksSection.classList.remove('visible');
+        bookmarksSection.classList.remove('visible');
+        chaptersSection.classList.add('visible');
+
+        document.querySelector('.buttons-container').style.display = 'none';
+        document.querySelector('.search-container').style.display = 'none';
+
+        loadChapterPage(0);
+    }
+
+    async function loadChapterPage(page) {
+        currentChapterPage = page;
+
+        chapterBookTitle.textContent = currentBookName;
+        chaptersList.innerHTML = '<div class="loading"><div class="loading-spinner"></div>加载中...</div>';
+
+        try {
+            const response = await fetch(`${API_BASE}/book/pages?bookId=${currentBookId}&page=${page}&size=50`);
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || '加载失败');
+            }
+
+            chaptersList.innerHTML = '';
+            pageListCount.textContent = `共 ${data.count} 页`;
+
+            chaptersPaginationInfo.textContent = `第 ${page + 1} / ${data.totalPages} 页 (每页50条)`;
+
+            if (data.pages && data.pages.length > 0) {
+                data.pages.forEach(p => {
+                    const item = document.createElement('a');
+                    item.className = 'chapter-item';
+                    item.href = p.url;
+                    item.target = "_blank";
+
+                    item.innerHTML = `
+                        <span class="chapter-title">第 ${p.page} 页</span>
+                        <span class="chapter-page">Page ${p.page}</span>
+                    `;
+                    chaptersList.appendChild(item);
+                });
+            } else {
+                chaptersList.innerHTML = '<div class="error">暂无数据</div>';
+            }
+
+            updateChaptersPagination(data.totalPages, page);
+
+            window.scrollTo(0, 0);
+
+        } catch (error) {
+            console.error(error);
+            chaptersList.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+        }
+    }
+
+    function updateChaptersPagination(totalPages, currentPage) {
+        if (totalPages <= 1) {
+            chaptersPagination.style.display = 'none';
+            return;
+        }
+
+        chaptersPagination.style.display = 'flex';
+        chaptersPrevPage.disabled = currentPage <= 0;
+        chaptersNextPage.disabled = currentPage >= totalPages - 1;
+
+        chaptersPageNumbers.innerHTML = '';
+
+        const pageBtn = document.createElement('span');
+        pageBtn.className = 'page-number active';
+        pageBtn.textContent = currentPage + 1;
+        chaptersPageNumbers.appendChild(pageBtn);
+
+        chaptersPrevPage.onclick = () => {
+            if (currentPage > 0) loadChapterPage(currentPage - 1);
+        };
+
+        chaptersNextPage.onclick = () => {
+            if (currentPage < totalPages - 1) loadChapterPage(currentPage + 1);
+        };
+    }
+
+
+    function closeChapters() {
+        chaptersSection.classList.remove('visible');
+        if (previousSection) {
+            previousSection.classList.add('visible');
+        } else {
+            booksSection.classList.add('visible');
+        }
+        document.querySelector('.buttons-container').style.display = 'flex';
+        document.querySelector('.search-container').style.display = 'block';
     }
 </script>
 
