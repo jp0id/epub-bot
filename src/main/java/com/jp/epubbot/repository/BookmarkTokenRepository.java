@@ -31,4 +31,6 @@ public interface BookmarkTokenRepository extends JpaRepository<BookmarkToken, St
 
     BookmarkToken findFirstByBookName(String bookName);
 
+    @Query("SELECT COUNT(b) FROM BookmarkToken b WHERE b.url LIKE %:bookId%")
+    int countByBookId(String bookId);
 }
