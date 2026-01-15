@@ -631,10 +631,15 @@
     <div id="chaptersSection" class="books-section">
         <div class="books-header">
             <div style="display: flex; align-items: center; flex: 1;">
-                <button class="back-btn" onclick="closeChapters()">← 返回</button>
-                <div class="books-title" id="chapterBookTitle" style="font-size: 1.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">页码列表</div>
+                <button class="back-btn" onclick="closeChapters()" style="flex-shrink: 0; margin-right: 0;">
+                    ← 返回
+                </button>
+                <div class="books-title" id="chapterBookTitle"
+                     style="flex: 1; min-width: 0; font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;">页码列表</div>
             </div>
-            <div class="books-count" id="pageListCount">0 页</div>
+            <div class="books-count" id="pageListCount" style="flex-shrink: 0;">
+                0 页
+            </div>
         </div>
 
         <div id="chaptersList" class="chapter-list">
