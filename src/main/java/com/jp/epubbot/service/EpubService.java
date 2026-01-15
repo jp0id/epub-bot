@@ -85,7 +85,8 @@ public class EpubService {
                         childLen += 1000;
                     }
 
-                    if (currentLength + childLen > charsPerPage && currentLength > 0) {
+                    int minPageThreshold = 800;
+                    if ((currentLength + childLen > charsPerPage) && (currentLength > minPageThreshold)) {
                         savePage(bookId, pageCounter, currentHtmlBuffer.toString());
                         String pageUrl = generateUrl(bookId, pageCounter);
                         pageUrls.add(pageUrl);
