@@ -1,5 +1,6 @@
 package com.jp.epubbot.controller;
 
+import com.jp.epubbot.entity.BookmarkToken;
 import com.jp.epubbot.service.BookmarkService;
 import com.jp.epubbot.service.LocalBookService;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,8 @@ public class ReadController {
 
         String token = bookmarkService.findTokenByPage(bookId, pageIndex);
 
+        BookmarkToken first = bookmarkService.findFirstByUrlContaining(bookId);
+
         model.addAttribute("bookmarkToken", token);
         model.addAttribute("botUsername", botUsername);
 
@@ -49,6 +52,9 @@ public class ReadController {
         String deepLinkParam = "loc_" + bookId + "_" + pageIndex;
         String bookmarkLink = "https://t.me/" + botUsername + "?start=" + deepLinkParam;
         model.addAttribute("bookmarkLink", bookmarkLink);
+
+        String name = first.getBookName();
+        model.addAttribute("title", (name != null && name.length() > 10) ? name.substring(0, 10) + "..." : name);
 
         return "read";
     }

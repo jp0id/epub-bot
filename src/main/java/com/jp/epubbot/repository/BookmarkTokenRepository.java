@@ -36,6 +36,7 @@ public interface BookmarkTokenRepository extends JpaRepository<BookmarkToken, St
     @Query("SELECT COUNT(b) FROM BookmarkToken b WHERE b.url LIKE %:bookId%")
     int countByBookId(String bookId);
 
+    BookmarkToken findFirstByUrlContaining(String bookId);
 
     Page<BookmarkToken> findByUrlContaining(String urlPart, Pageable pageable);
 

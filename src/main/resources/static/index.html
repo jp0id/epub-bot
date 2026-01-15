@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EPUB Bot Mini App</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
+    <link rel="icon"
+          href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
     <style>
         * {
             margin: 0;
@@ -62,11 +63,11 @@
             gap: 8px;
             align-items: center;
             width: 100%;
-            background: #f7fafc;       /* 给搜索条加个浅底色 */
+            background: #f7fafc; /* 给搜索条加个浅底色 */
             padding: 8px;
             border-radius: 12px;
             border: 1px solid #e2e8f0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             box-sizing: border-box; /* 关键：防止 padding 撑大宽度 */
         }
 
@@ -630,22 +631,27 @@
     </div>
 
     <div id="chaptersSection" class="books-section">
-        <div class="books-header">
-            <div style="display: flex; align-items: center; flex: 1;">
-                <button class="back-btn" onclick="closeChapters()" style="flex-shrink: 0; margin-right: 0;">
-                    ← 返回
-                </button>
+        <div class="books-header"
+             style="display: flex; align-items: center; gap: 10px; padding-bottom: 15px; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0;">
+
+            <button class="back-btn" onclick="closeChapters()" style="flex-shrink: 0; margin-right: 0;">
+                ← 返回
+            </button>
+
+            <div style="flex: 1; min-width: 0; text-align: center;">
                 <div class="books-title" id="chapterBookTitle"
-                     style="flex: 1; min-width: 0; font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;">页码列表</div>
+                     style="font-size: 1.2rem; font-weight: bold; color: #2d3748; line-height: 1.4; word-break: break-word; white-space: normal;">
+                    书籍目录
+                </div>
             </div>
+
             <div class="books-count" id="pageListCount" style="flex-shrink: 0;">
                 0 页
             </div>
         </div>
-
         <div id="chaptersList" class="chapter-list">
         </div>
-        <!-- 新增：章节列表的分页控件 -->
+
         <div id="chaptersPagination" class="pagination" style="display: none;">
             <div class="pagination-info" id="chaptersPaginationInfo"></div>
             <div class="pagination-controls">

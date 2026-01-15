@@ -221,6 +221,10 @@ public class BookmarkService {
         return tokenRepo.countByBookId("/read/" + bookId + "/");
     }
 
+    public BookmarkToken findFirstByUrlContaining(String bookId) {
+        return tokenRepo.findFirstByUrlContaining("/read/" + bookId + "/");
+    }
+
     public Map<String, Object> getBookPages(String bookId, int page, int size) {
         String searchPath = "/read/" + bookId + "/";
 
