@@ -31,6 +31,9 @@ public class ReadController {
             return "error/404";
         }
 
+        int totalPages = bookmarkService.getTotalPages(bookId);
+        model.addAttribute("totalPages", totalPages);
+
         String nextContent = localBookService.getChapter(bookId, pageIndex + 1);
         if (nextContent != null) {
             model.addAttribute("nextPageUrl", "/read/" + bookId + "/" + (pageIndex + 1));

@@ -360,10 +360,16 @@
     }
 
     function handlePageInput(e) {
+        const totalPages = [[${totalPages}]] || 9999;
+
         if (e.key === 'Enter') {
             const targetPage = parseInt(pageInput.value);
             if (isNaN(targetPage) || targetPage < 1) {
                 showMessage("请输入有效的页码");
+                return;
+            }
+            if (targetPage > totalPages) {
+                showMessage("当前书籍页数为" + totalPages + "页 重新输入页码");
                 return;
             }
             pageInput.blur();

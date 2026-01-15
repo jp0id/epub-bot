@@ -215,4 +215,7 @@ public class BookmarkService {
         return null;
     }
 
+    public int getTotalPages(String bookId) {
+        return tokenRepo.countByBookId("/read/" + bookId + "/");
+    }
 }
