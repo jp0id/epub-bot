@@ -90,6 +90,34 @@
             background: white;
         }
 
+       /* 放在你的主 css 文件里 */
+        .loading-center {
+        min-height: 300px;           /* 至少占点高度，避免页面跳太厉害 */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        color: #666;
+        font-size: 1.2rem;
+        padding: 40px 20px;
+        }
+
+/* 转圈圈动画 */
+    .spinner {
+    width: 48px;
+    height: 48px;
+    border: 5px solid #e0e0e0;
+    border-top-color: #3498db;   /* 你喜欢的主题色都可以换 */
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    }
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
         .books-search button {
             flex-shrink: 0;
             padding: 10px 16px;
@@ -778,7 +806,15 @@
         currentBooksPage = page;
 
         // Show loading and hide previous error
-        loading.style.display = 'block';
+        // loading.style.display = 'block';
+
+        booksList.innerHTML = `
+        <div class="loading-center">
+            <div class="spinner"></div>
+            <div>正在加载书籍列表...</div>
+        </div>
+        `;
+        
         hideError();
         booksList.innerHTML = '';
 
