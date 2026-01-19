@@ -170,9 +170,9 @@ public class BookmarkService {
     }
 
     public String findTokenByPage(String bookId, int pageIndex) {
-        // 构造 URL 后缀，例如: /read/abc12345/1
-        String suffix = "/read/" + bookId + "/" + pageIndex;
-        return tokenRepo.findByUrlSuffix(suffix)
+        String suffixRead = "/read/" + bookId + "/" + pageIndex;
+        String suffixBooks = "/books/" + bookId + "/" + pageIndex;
+        return tokenRepo.findFirstByBookIdDual(suffixRead, suffixBooks)
                 .map(BookmarkToken::getToken)
                 .orElse(null);
     }
@@ -234,17 +234,25 @@ public class BookmarkService {
     }
 
     public int getTotalPages(String bookId) {
-        return tokenRepo.countByBookId("/read/" + bookId + "/");
+        String readPath = "/read/" + bookId + "/";
+        String booksPath = "/books/" + bookId + "/";
+        return tokenRepo.countByBookIdDual(readPath, booksPath);
     }
 
     public BookmarkToken findFirstByUrlContaining(String bookId) {
-        return tokenRepo.findFirstByUrlContaining("/read/" + bookId + "/");
+        String readPath = "/read/" + bookId + "/";
+        String booksPath = "/books/" + bookId + "/";
+        // 使用新的查询方法获取第一条记录（通常用于获取书名）
+        Page<BookmarkToken> page = tokenRepo.findByBookIdDual(readPath, booksPath, PageRequest.of(0, 1));
+        return page.hasContent() ? page.getContent().get(0) : null;
     }
 
     public Map<String, Object> getBookPages(String bookId, int page, int size) {
         String searchPath = "/read/" + bookId + "/";
+        String booksPath = "/books/" + bookId + "/"; // 新模式 (R2)
 
-        Page<BookmarkToken> pageResult = tokenRepo.findByUrlContaining(searchPath, PageRequest.of(page, size));
+
+        Page<BookmarkToken> pageResult = tokenRepo.findByBookIdDual(searchPath, booksPath, PageRequest.of(page, size));
 
         List<Map<String, Object>> list = pageResult.getContent().stream()
                 .map(t -> {
@@ -266,10 +274,17 @@ public class BookmarkService {
 
     private int extractPageIndexFromUrl(String url) {
         try {
-            Pattern pattern = Pattern.compile("/(\\d+)/?$");
+            Pattern pattern = Pattern.compile("/(\\d+)(\\.html)?$");
+
             Matcher matcher = pattern.matcher(url);
             if (matcher.find()) {
                 return Integer.parseInt(matcher.group(1));
+            }
+
+            Pattern patternOld = Pattern.compile("/(\\d+)(/|$)");
+            Matcher matcherOld = patternOld.matcher(url);
+            if (matcherOld.find()) {
+                return Integer.parseInt(matcherOld.group(1));
             }
         } catch (Exception ignore) {
         }

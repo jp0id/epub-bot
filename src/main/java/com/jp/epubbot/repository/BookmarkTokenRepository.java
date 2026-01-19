@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,16 +29,15 @@ public interface BookmarkTokenRepository extends JpaRepository<BookmarkToken, St
     @Query("DELETE FROM BookmarkToken where bookName = :bookName")
     void deleteByBookName(String bookName);
 
-    @Query("SELECT b FROM BookmarkToken b WHERE b.url LIKE %:urlSuffix")
-    Optional<BookmarkToken> findByUrlSuffix(String urlSuffix);
+    @Query("SELECT b FROM BookmarkToken b WHERE (b.url LIKE %:path1% OR b.url LIKE %:path2%)")
+    Optional<BookmarkToken> findFirstByBookIdDual(@Param("path1") String path1, @Param("path2") String path2);
 
     BookmarkToken findFirstByBookName(String bookName);
 
-    @Query("SELECT COUNT(b) FROM BookmarkToken b WHERE b.url LIKE %:bookId%")
-    int countByBookId(String bookId);
+    @Query("SELECT COUNT(b) FROM BookmarkToken b WHERE b.url LIKE %:path1% OR b.url LIKE %:path2%")
+    int countByBookIdDual(@Param("path1") String path1, @Param("path2") String path2);
 
-    BookmarkToken findFirstByUrlContaining(String bookId);
-
-    Page<BookmarkToken> findByUrlContaining(String urlPart, Pageable pageable);
+    @Query("SELECT b FROM BookmarkToken b WHERE b.url LIKE %:path1% OR b.url LIKE %:path2%")
+    Page<BookmarkToken> findByBookIdDual(@Param("path1") String path1, @Param("path2") String path2, Pageable pageable);
 
 }
