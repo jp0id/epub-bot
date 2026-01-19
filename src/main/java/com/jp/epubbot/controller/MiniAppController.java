@@ -304,30 +304,61 @@ public class MiniAppController {
     }
 
     @PostMapping("/bookmark")
-    public Map<String, Object> saveBookmark(@RequestBody BookmarkRequest request) {
+    public Map<String, Object> saveBookmark(@RequestBody Map<String, Object> payload) {
         Map<String, Object> response = new HashMap<>();
+        response.put("timestamp", System.currentTimeMillis());
 
         try {
-            if (request.getUserId() == null || request.getUserId() == 0) {
+            Object userIdObj = payload.get("userId");
+            if (userIdObj == null) {
                 response.put("success", false);
-                response.put("error", "Invalid User ID");
+                response.put("error", "User ID is required");
                 return response;
             }
-            if (request.getToken() == null || request.getToken().isBlank()) {
-                response.put("success", false);
-                response.put("error", "Token is required");
+            Long userId = Long.parseLong(userIdObj.toString());
+
+            String token = (String) payload.get("token");
+
+            if (token != null && !token.isBlank() && !"DIRECT_URL_SAVE".equals(token)) {
+                boolean saved = bookmarkService.addBookmarkByToken(userId, token);
+                if (saved) {
+                    response.put("success", true);
+                    response.put("message", "Bookmark saved successfully (Token)");
+                } else {
+                    response.put("success", false);
+                    response.put("error", "Invalid or expired token");
+                }
                 return response;
             }
 
-            boolean saved = bookmarkService.addBookmarkByToken(request.getUserId(), request.getToken());
+            if (payload.containsKey("directData")) {
+                Map<String, String> data = (Map<String, String>) payload.get("directData");
 
-            if (saved) {
+                String bookName = data.get("bookName");
+                String chapterTitle = data.get("chapterTitle");
+                String url = data.get("url");
+
+                if (bookName == null || url == null) {
+                    response.put("success", false);
+                    response.put("error", "Incomplete bookmark data");
+                    return response;
+                }
+
+                BookmarkService.BookmarkInfo info = new BookmarkService.BookmarkInfo(
+                        bookName,
+                        chapterTitle != null ? chapterTitle : "未知章节",
+                        url
+                );
+
+                bookmarkService.saveBookmarkForUser(userId, info);
+
                 response.put("success", true);
-                response.put("message", "Bookmark saved successfully");
-            } else {
-                response.put("success", false);
-                response.put("error", "Invalid or expired token");
+                response.put("message", "Bookmark saved successfully (Direct)");
+                return response;
             }
+
+            response.put("success", false);
+            response.put("error", "Invalid request parameters: missing token or directData");
 
         } catch (Exception e) {
             log.error("Error saving bookmark", e);
@@ -335,7 +366,6 @@ public class MiniAppController {
             response.put("error", "Internal server error: " + e.getMessage());
         }
 
-        response.put("timestamp", System.currentTimeMillis());
         return response;
     }
 
@@ -343,7 +373,7 @@ public class MiniAppController {
     public Map<String, Object> getBookPages(
             @RequestParam String bookId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size) { // 默认一页显示 50 条
+            @RequestParam(defaultValue = "50") int size) {
 
         Map<String, Object> response = new HashMap<>();
         try {

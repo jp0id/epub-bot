@@ -31,6 +31,7 @@ public class BookmarkService {
 
     private static final String DATA_DIR = "data";
 
+    private final R2StorageService r2StorageService;
     private final BookmarkTokenRepository tokenRepo;
     private final UserBookmarkRepository bookmarkRepo;
     private final LocalBookService localBookService;
@@ -58,9 +59,7 @@ public class BookmarkService {
         if (!dir.exists()) dir.mkdirs();
     }
 
-    public void createBookmarkToken(String bookName, String chapterTitle, String url) {
-        String tokenStr = "bm_" + UUID.randomUUID().toString().substring(0, 8);
-
+    public void createBookmarkToken(String bookName, String chapterTitle, String url, String tokenStr) {
         BookmarkToken token = new BookmarkToken();
         token.setToken(tokenStr);
         token.setBookName(bookName);
@@ -192,6 +191,7 @@ public class BookmarkService {
                     if (bookId != null) {
                         log.info("正在删除书籍文件, BookName: {}, BookId: {}", bookName, bookId);
                         localBookService.deleteBookDirectory(bookId);
+                        r2StorageService.deleteFolder("books/" + bookId);
                     }
                 }
             } catch (Exception e) {

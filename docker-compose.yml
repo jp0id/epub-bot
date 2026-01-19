@@ -14,6 +14,11 @@ services:
       - TELEGRAM_BOT_ADMINS=201728830,201728830
       - TELEGRAM_BOT_BASE=https://api.telegram.org/bot
       - TELEGRAM_BOT_WEBAPP_URL=https://xxx.xx.com  # 必须是https协议，需要使用nginx等反向代理该服务
+      - CLOUD_R2_ACCESS_KEY=
+      - CLOUD_R2_SECRET_KEY=
+      - CLOUD_R2_ACCOUNT_ID=
+      - CLOUD_R2_BUCKET_NAME=
+      - CLOUD_R2_PUBLIC_DOMAIN=
     volumes:
       - ./data:/app/data
     blkio_config:

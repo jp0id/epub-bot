@@ -11,6 +11,7 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
                 .allowedOrigins(
+                        "https://epub.8void.sbs",
                         "https://telegram.org",
                         "https://web.telegram.org",
                         "https://web.telegram.org.k",

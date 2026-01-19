@@ -72,6 +72,18 @@
             <artifactId>hibernate-community-dialects</artifactId>
             <version>6.4.4.Final</version> <!-- 请根据你的 Spring Boot 版本调整，Spring Boot 3.2+ 用 6.x -->
         </dependency>
+
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-s3</artifactId>
+            <version>1.12.665</version>
+        </dependency>
+        <!-- 如果没有 JAXB 依赖（Java 9+ 需要），可能需要添加 -->
+        <dependency>
+            <groupId>javax.xml.bind</groupId>
+            <artifactId>jaxb-api</artifactId>
+            <version>2.3.1</version>
+        </dependency>
     </dependencies>
 
     <build>

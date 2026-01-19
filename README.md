@@ -17,14 +17,19 @@
 
 ## 参数说明
 
-| 参数名                         | 类型       | 默认值                        | 说明                                                                             |
-|-----------------------------|----------|----------------------------|--------------------------------------------------------------------------------|
-| `TELEGRAM_BOT_TOKEN`        | `string` | `null`                     | telegram bot token，通过`botFather`获取                                             |
-| `TELEGRAM_BOT_USERNAME`     | `string` | `null`                     | telegram bot name                                                              |
-| `TELEGRAM_BOT_ADMINS`       | `string` | `null`                     | bot的可上传书籍人的telegram id，多个使用`,`隔开，留空表示任何人都可上传epub文件                             |
-| `TELEGRAM_BOT_BASE`         | `string` | `https://api.telegram.org` | telegram api base url                                                          |
-| `APP_CHARS_PER_PAGE`        | `int`    | `3000`                     | 每一页的字数，建议不超过10000，Telegraph 的 API 有 64KB 的节点大小限制                               |
-| `TELEGRAPH_CATTO_PIC_TOKEN` | `string` | `null`                     | 自定义图床验证token(需自建)，具体参考：https://github.com/jp0id/CattoPic/blob/main/docs/API.md |
+| 参数名                       | 类型       | 默认值                        | 说明                                                 |
+|---------------------------|----------|----------------------------|----------------------------------------------------|
+| `TELEGRAM_BOT_TOKEN`      | `string` | `null`                     | telegram bot token，通过`botFather`获取                 |
+| `TELEGRAM_BOT_USERNAME`   | `string` | `null`                     | telegram bot name                                  |
+| `TELEGRAM_BOT_ADMINS`     | `string` | `null`                     | bot的可上传书籍人的telegram id，多个使用`,`隔开，留空表示任何人都可上传epub文件 |
+| `TELEGRAM_BOT_BASE`       | `string` | `https://api.telegram.org` | telegram api base url                              |
+| `APP_CHARS_PER_PAGE`      | `int`    | `3000`                     | 每一页的字数，建议不超过10000，Telegraph 的 API 有 64KB 的节点大小限制   |
+| `TELEGRAM_BOT_WEBAPP_URL` | `string` | `null`                     | 服务地址，必须使用https协议                                   |
+| `CLOUD_R2_ACCESS_KEY`     | `string` | `null`                     |                                                    |
+| `CLOUD_R2_SECRET_KEY`     | `string` | `null`                     |                                                    |
+| `CLOUD_R2_ACCOUNT_ID`     | `string` | `null`                     |                                                    |
+| `CLOUD_R2_BUCKET_NAME`    | `string` | `epub-storage`             | r2的名称                                              |
+| `CLOUD_R2_PUBLIC_DOMAIN`  | `string` | `null`                     | cf 所部署的worker的域名地址                                 |
 
 ## 示图
 

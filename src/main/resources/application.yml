@@ -3,11 +3,11 @@ server:
 
 telegram:
   bot:
-    username: ""
-    token: "7589476199:xxxx"
+    username: "MyTestEpubBot"
+    token: "8220404450:AAGEY1UjGSVl1ntvhpNnWVaOhEDpDuEHHpk"
     admins: 201728830
-    base: https://api.telegram.org/bot
-    webapp-url: https://xxx.xx.com  # 必须是https协议，需要使用nginx等反向代理该服务
+    base: "https://api.8void.xyz/bot"
+    webapp-url: https://epub.8void.top
 
 app:
   chars-per-page: 3000
@@ -23,3 +23,11 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: false
+
+cloud:
+  r2:
+    access-key: "07a2bfb8cb2d9234e37efc5affdafa47"
+    secret-key: "93c13cf0b3bb4ffe9db46cdeaff81d9c54af2cdc96018d2fad4343ce11e59b35"
+    account-id: "fa29c8cdcb9bd46b60d72d2a6caf0ac3"
+    bucket-name: "epub-storage"
+    public-domain: "https://epub.8void.sbs/"
