@@ -65,19 +65,30 @@ public class EpubService {
 
                 for (Element child : body.children()) {
                     String childHtml = child.outerHtml();
-                    int childLen = child.text().length();
+                    String childText = child.text().trim(); // 获取纯文本并去空格
+                    int childLen = childText.length();
 
                     if (!child.select("img").isEmpty() || child.tagName().equalsIgnoreCase("img") || child.tagName().equalsIgnoreCase("svg")) {
                         childLen += 1000;
                     }
 
-                    boolean isHeading = child.tagName().matches("h[1-6]");
+                    boolean isHeading = false;
 
-                    boolean avoidOrphanedHeader = isHeading && (currentLength > charsPerPage * 0.6);
+                    if (child.tagName().matches("h[1-6]")) {
+                        isHeading = true;
+                    }
+                    else if (child.tagName().equals("p")) {
+                        if (childLen > 0 && childLen < 50 &&
+                            !childText.contains("，") && !childText.contains("。") && !childText.contains("；")) {
+                            isHeading = true;
+                        }
+                    }
+                    boolean forceBreakForHeading = isHeading && (currentLength > 100);
 
-                    int minPageThreshold = 800;
+                    int minPageThreshold = 800; // 最小分页阈值
+                    boolean isPageFull = (currentLength + childLen > charsPerPage) && (currentLength > minPageThreshold);
 
-                    if (avoidOrphanedHeader || ((currentLength + childLen > charsPerPage) && (currentLength > minPageThreshold))) {
+                    if (forceBreakForHeading || isPageFull) {
                         String token = "bm_" + UUID.randomUUID().toString().substring(0, 8);
                         String pageUrl = uploadPage(bookId, bookTitle, pageCounter, currentHtmlBuffer.toString(), false, token);
                         pageUrls.add(pageUrl);
