@@ -1280,10 +1280,13 @@
 
     function showBookChapters(bookName, bookUrl) {
         // 提取 bookId
-        const match = bookUrl.match(/\/read\/([^\/]+)\//);
+        let match = bookUrl.match(/\/read\/([^\/]+)\//);
         if (!match) {
-            alert("无法解析书籍ID");
-            return;
+            match = bookUrl.match(/\/books\/([^\/]+)\//);
+            if (!match) {
+                alert("无法解析书籍ID");
+                return;
+            }
         }
         currentBookId = match[1];
         currentBookName = bookName;
