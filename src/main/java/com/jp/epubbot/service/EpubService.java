@@ -71,8 +71,13 @@ public class EpubService {
                         childLen += 1000;
                     }
 
+                    boolean isHeading = child.tagName().matches("h[1-6]");
+
+                    boolean avoidOrphanedHeader = isHeading && (currentLength > charsPerPage * 0.6);
+
                     int minPageThreshold = 800;
-                    if ((currentLength + childLen > charsPerPage) && (currentLength > minPageThreshold)) {
+
+                    if (avoidOrphanedHeader || ((currentLength + childLen > charsPerPage) && (currentLength > minPageThreshold))) {
                         String token = "bm_" + UUID.randomUUID().toString().substring(0, 8);
                         String pageUrl = uploadPage(bookId, bookTitle, pageCounter, currentHtmlBuffer.toString(), false, token);
                         pageUrls.add(pageUrl);

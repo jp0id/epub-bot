@@ -186,11 +186,14 @@ public class BookmarkService {
                 BookmarkToken token = tokenRepo.findFirstByBookName(bookName);
 
                 if (token != null && token.getUrl() != null) {
-                    String bookId = extractBookIdFromUrl(token.getUrl());
-
+                    log.info("book token url: [{}]", token.getUrl());
+                    String bookId = extractBookIdFromUrlFromLocalDB(token.getUrl());
                     if (bookId != null) {
-                        log.info("正在删除书籍文件, BookName: {}, BookId: {}", bookName, bookId);
+                        log.info("正在删除本地书籍文件, BookName: {}, BookId: {}", bookName, bookId);
                         localBookService.deleteBookDirectory(bookId);
+                    } else {
+                        bookId = extractBookIdFromUrlFromR2(token.getUrl());
+                        log.info("正在删除R2书籍文件, BookName: {}, BookId: {}", bookName, bookId);
                         r2StorageService.deleteFolder("books/" + bookId);
                     }
                 }
@@ -204,7 +207,7 @@ public class BookmarkService {
         }
     }
 
-    private String extractBookIdFromUrl(String url) {
+    private String extractBookIdFromUrlFromLocalDB(String url) {
         try {
             Pattern pattern = Pattern.compile("/read/([^/]+)/");
             Matcher matcher = pattern.matcher(url);
@@ -212,7 +215,20 @@ public class BookmarkService {
                 return matcher.group(1);
             }
         } catch (Exception e) {
-            log.warn("解析 BookId 失败: {}", url);
+            log.warn("extractBookIdFromUrlFromLocalDB 解析 BookId 失败: {}", url);
+        }
+        return null;
+    }
+
+    private String extractBookIdFromUrlFromR2(String url) {
+        try {
+            Pattern pattern = Pattern.compile("/books/([^/]+)/");
+            Matcher matcher = pattern.matcher(url);
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
+        } catch (Exception e) {
+            log.warn("extractBookIdFromUrlFromR2 解析 BookId 失败: {}", url);
         }
         return null;
     }

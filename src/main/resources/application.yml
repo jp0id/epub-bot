@@ -26,8 +26,8 @@ spring:
 
 cloud:
   r2:
-    access-key: "access-key"
-    secret-key: "secret-key"
-    account-id: "account-id"
-    bucket-name: "epub-storage"
-    public-domain: "https://your.domain.com/"
+    access-key: ${CLOUD_R2_ACCESS_KEY:your-access-key}
+    secret-key: ${CLOUD_R2_SECRET_KEY:your-secret-key}
+    account-id: ${CLOUD_R2_ACCOUNT_ID:your-account-id}
+    bucket-name: ${CLOUD_R2_BUCKET_NAME:epub-storage}
+    public-domain: ${CLOUD_R2_PUBLIC_DOMAIN:your-public-domain}
