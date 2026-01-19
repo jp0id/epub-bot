@@ -65,30 +65,14 @@ public class EpubService {
 
                 for (Element child : body.children()) {
                     String childHtml = child.outerHtml();
-                    String childText = child.text().trim(); // 获取纯文本并去空格
-                    int childLen = childText.length();
+                    int childLen = child.text().length();
 
                     if (!child.select("img").isEmpty() || child.tagName().equalsIgnoreCase("img") || child.tagName().equalsIgnoreCase("svg")) {
                         childLen += 1000;
                     }
 
-                    boolean isHeading = false;
-
-                    if (child.tagName().matches("h[1-6]")) {
-                        isHeading = true;
-                    }
-                    else if (child.tagName().equals("p")) {
-                        if (childLen > 0 && childLen < 50 &&
-                            !childText.contains("，") && !childText.contains("。") && !childText.contains("；")) {
-                            isHeading = true;
-                        }
-                    }
-                    boolean forceBreakForHeading = isHeading && (currentLength > 100);
-
-                    int minPageThreshold = 800; // 最小分页阈值
-                    boolean isPageFull = (currentLength + childLen > charsPerPage) && (currentLength > minPageThreshold);
-
-                    if (forceBreakForHeading || isPageFull) {
+                    int minPageThreshold = 800;
+                    if ((currentLength + childLen > charsPerPage) && (currentLength > minPageThreshold)) {
                         String token = "bm_" + UUID.randomUUID().toString().substring(0, 8);
                         String pageUrl = uploadPage(bookId, bookTitle, pageCounter, currentHtmlBuffer.toString(), false, token);
                         pageUrls.add(pageUrl);
@@ -124,7 +108,7 @@ public class EpubService {
     private void handleImagesR2(Document doc, Book book, String currentResourceHref, String bookId) {
         for (Element img : doc.select("img")) {
             String src = img.attr("src");
-            if (src.startsWith("http")) continue;
+            if (src.startsWith("http") || src.contains("tgchannels")) continue;
             try {
                 String imageHref = resolveHref(currentResourceHref, src);
                 Resource imageRes = book.getResources().getByHref(imageHref);
