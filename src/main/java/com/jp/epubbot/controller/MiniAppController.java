@@ -2,6 +2,7 @@ package com.jp.epubbot.controller;
 
 import com.jp.epubbot.service.BookmarkService;
 import lombok.Data;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -38,13 +39,8 @@ public class MiniAppController {
         Map<String, Object> info = new HashMap<>();
         info.put("name", "EPUB Bot Mini App");
         info.put("version", "1.0.0");
-        info.put("description", "Telegram Mini App for EPUB reading bot");
-        info.put("features", new String[]{
-                "Test web interface",
-                "Book browsing",
-                "Future: Reading interface",
-                "Future: Bookmark management"
-        });
+        info.put("description", "Telegram EPUB阅读机器人");
+        info.put("author", "pm_jp_bot");
         return info;
     }
 
@@ -161,23 +157,7 @@ public class MiniAppController {
             }
 
             int totalBookmarks = allBookmarks.size();
-            List<Map<String, Object>> allGroups = new ArrayList<>();
-            for (Map.Entry<String, List<BookmarkService.BookmarkInfo>> entry : bookGroups.entrySet()) {
-                Map<String, Object> group = new TreeMap<>();
-                group.put("bookName", entry.getKey());
-
-                List<Map<String, String>> groupBookmarks = new ArrayList<>();
-                for (BookmarkService.BookmarkInfo bookmark : entry.getValue()) {
-                    Map<String, String> bookmarkMap = new HashMap<>();
-                    bookmarkMap.put("bookName", bookmark.getBookName());
-                    bookmarkMap.put("chapterTitle", bookmark.getChapterTitle());
-                    bookmarkMap.put("url", bookmark.getUrl());
-                    groupBookmarks.add(bookmarkMap);
-                }
-                group.put("bookmarks", groupBookmarks);
-                group.put("count", groupBookmarks.size());
-                allGroups.add(group);
-            }
+            List<Map<String, Object>> allGroups = getAllGroups(bookGroups);
 
             int currentBookmarkCount = 0;
             int currentPage = 0;
@@ -388,4 +368,27 @@ public class MiniAppController {
         }
         return response;
     }
+
+
+    private static @NonNull List<Map<String, Object>> getAllGroups(Map<String, List<BookmarkService.BookmarkInfo>> bookGroups) {
+        List<Map<String, Object>> allGroups = new ArrayList<>();
+        for (Map.Entry<String, List<BookmarkService.BookmarkInfo>> entry : bookGroups.entrySet()) {
+            Map<String, Object> group = new TreeMap<>();
+            group.put("bookName", entry.getKey());
+
+            List<Map<String, String>> groupBookmarks = new ArrayList<>();
+            for (BookmarkService.BookmarkInfo bookmark : entry.getValue()) {
+                Map<String, String> bookmarkMap = new HashMap<>();
+                bookmarkMap.put("bookName", bookmark.getBookName());
+                bookmarkMap.put("chapterTitle", bookmark.getChapterTitle());
+                bookmarkMap.put("url", bookmark.getUrl());
+                groupBookmarks.add(bookmarkMap);
+            }
+            group.put("bookmarks", groupBookmarks);
+            group.put("count", groupBookmarks.size());
+            allGroups.add(group);
+        }
+        return allGroups;
+    }
+
 }

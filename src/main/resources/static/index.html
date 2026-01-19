@@ -990,7 +990,7 @@
             const response = await fetch(`${API_BASE}/info`);
             const data = await response.json();
 
-            alert(`App Info:\n\nName: ${data.name}\nVersion: ${data.version}\nDescription: ${data.description}`);
+            alert(`App Info:\n\nName: ${data.name}\nVersion: ${data.version}\nDescription: ${data.description}\nAuthor: ${data.author}`);
         } catch (error) {
             showError(`Error loading app info: ${error.message}`);
         }
