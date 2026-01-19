@@ -4,10 +4,10 @@ server:
 telegram:
   bot:
     username: "MyTestEpubBot"
-    token: "8220404450:AAGEY1UjGSVl1ntvhpNnWVaOhEDpDuEHHpk"
-    admins: 201728830
-    base: "https://api.8void.xyz/bot"
-    webapp-url: https://epub.8void.top
+    token: "8220404450:xxxxx"
+    admins: 123123123
+    base: "https://api.telegram.org"
+    webapp-url: https://test.com
 
 app:
   chars-per-page: 3000
