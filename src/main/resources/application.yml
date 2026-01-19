@@ -26,8 +26,8 @@ spring:
 
 cloud:
   r2:
-    access-key: "07a2bfb8cb2d9234e37efc5affdafa47"
-    secret-key: "93c13cf0b3bb4ffe9db46cdeaff81d9c54af2cdc96018d2fad4343ce11e59b35"
-    account-id: "fa29c8cdcb9bd46b60d72d2a6caf0ac3"
+    access-key: "access-key"
+    secret-key: "secret-key"
+    account-id: "account-id"
     bucket-name: "epub-storage"
-    public-domain: "https://epub.8void.sbs/"
+    public-domain: "https://your.domain.com/"
