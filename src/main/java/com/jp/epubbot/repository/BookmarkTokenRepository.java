@@ -9,7 +9,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * @Author: J.P
@@ -30,7 +29,7 @@ public interface BookmarkTokenRepository extends JpaRepository<BookmarkToken, St
     void deleteByBookName(String bookName);
 
     @Query("SELECT b FROM BookmarkToken b WHERE (b.url LIKE %:path1% OR b.url LIKE %:path2%)")
-    Optional<BookmarkToken> findFirstByBookIdDual(@Param("path1") String path1, @Param("path2") String path2);
+    List<BookmarkToken> findByBookIdDual(@Param("path1") String path1, @Param("path2") String path2);
 
     BookmarkToken findFirstByBookName(String bookName);
 

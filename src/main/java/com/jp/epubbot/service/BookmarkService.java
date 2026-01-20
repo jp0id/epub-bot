@@ -172,7 +172,9 @@ public class BookmarkService {
     public String findTokenByPage(String bookId, int pageIndex) {
         String suffixRead = "/read/" + bookId + "/" + pageIndex;
         String suffixBooks = "/books/" + bookId + "/" + pageIndex;
-        return tokenRepo.findFirstByBookIdDual(suffixRead, suffixBooks)
+        return tokenRepo.findByBookIdDual(suffixRead, suffixBooks)
+                .stream()
+                .findFirst()
                 .map(BookmarkToken::getToken)
                 .orElse(null);
     }
