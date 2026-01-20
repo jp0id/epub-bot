@@ -14,7 +14,7 @@ app:
 
 spring:
   datasource:
-    url: jdbc:sqlite:data/epubbot.db
+    url: jdbc:sqlite:data/epubbot.db?journal_mode=WAL&busy_timeout=5000
     driver-class-name: org.sqlite.JDBC
     username: sa
     password:
