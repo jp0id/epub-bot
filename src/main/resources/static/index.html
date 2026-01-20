@@ -805,16 +805,11 @@
         // Update current page
         currentBooksPage = page;
 
-        // Show loading and hide previous error
-        // loading.style.display = 'block';
+        booksSection.classList.add('visible');
+        bookmarksSection.classList.remove('visible');
 
-        booksList.innerHTML = `
-        <div class="loading-center">
-            <div class="spinner"></div>
-            <div>正在加载书籍列表...</div>
-        </div>
-        `;
-        
+        // Show loading and hide previous error
+        loading.style.display = 'block';
         hideError();
         booksList.innerHTML = '';
 
@@ -831,39 +826,37 @@
                 throw new Error(data.error || 'Failed to load books');
             }
 
-            loading.style.display = 'none';
-
-            booksSection.classList.add('visible');
-            bookmarksSection.classList.remove('visible');
-
             booksCount.textContent = `${data.totalCount} 本书`;
 
             let pageInfoText = `第 ${page + 1} / ${data.totalPages} 页，共 ${data.totalCount} 本书`;
             if (currentSearchTerm) {
                 pageInfoText += ` (搜索: "${escapeHtml(currentSearchTerm)}")`;
             }
-            booksPaginationInfo.innerHTML = pageInfoText; // 使用 innerHTML 以支持 escapeHtml
+            booksPaginationInfo.innerHTML = pageInfoText;
 
             if (data.books && data.books.length > 0) {
                 data.books.forEach(book => {
                     const bookElement = document.createElement('div');
                     bookElement.className = 'book-card';
+                    const safeName = escapeHtml(book.name).replace(/'/g, "\\'");
+                    const safeUrl = escapeHtml(book.url);
+
                     bookElement.innerHTML = `
-                            <div class="book-name">${escapeHtml(book.name)}</div>
-                            <div class="bookmark-actions">
-                                <a href="${escapeHtml(book.url)}" class="book-link" target="_blank">
-                                    📚 阅读
-                                </a>
+                        <div class="book-name">${escapeHtml(book.name)}</div>
+                        <div class="bookmark-actions">
+                            <a href="${safeUrl}" class="book-link" target="_blank">
+                                📚 阅读
+                            </a>
 
-                                <button class="btn-info" onclick="showBookChapters('${escapeHtml(book.name).replace(/'/g, "\\'")}', '${escapeHtml(book.url)}')">
-                                    📑 选页
-                                </button>
+                            <button class="btn-info" onclick="showBookChapters('${safeName}', '${safeUrl}')">
+                                📑 选页
+                            </button>
 
-                                <button class="delete-btn" onclick="deleteBook('${escapeHtml(book.name).replace(/'/g, "\\'")}')">
-                                    🗑️ 删除
-                                </button>
-                            </div>
-                        `;
+                            <button class="delete-btn" onclick="deleteBook('${safeName}')">
+                                🗑️ 删除
+                            </button>
+                        </div>
+                    `;
                     booksList.appendChild(bookElement);
                 });
             } else {
@@ -878,6 +871,9 @@
 
         } catch (error) {
             showError(`错误: ${error.message}`);
+            booksList.innerHTML = '<div class="loading" style="color:red">加载失败，请联系管理员: @pm_jp_bot</div>';
+        } finally {
+            loading.style.display = 'none';
         }
     }
 
