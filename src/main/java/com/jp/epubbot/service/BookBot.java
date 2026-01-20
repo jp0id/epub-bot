@@ -79,8 +79,9 @@ public class BookBot extends TelegramLongPollingBot {
                     return;
                 }
                 Document doc = update.getMessage().getDocument();
-                if (doc.getFileName() != null && doc.getFileName().toLowerCase().endsWith(".epub")) {
-                    handleEpubFile(chatId, doc);
+                String fileName = doc.getFileName();
+                if (fileName != null && (fileName.toLowerCase().endsWith(".epub") || fileName.toLowerCase().endsWith(".txt")))  {
+                    handleBookFile(chatId, doc);
                 } else {
                     sendText(chatId, "请发送 .epub 格式的文件。");
                 }
@@ -153,7 +154,7 @@ public class BookBot extends TelegramLongPollingBot {
         }
     }
 
-    private void handleEpubFile(Long chatId, Document doc) {
+    private void handleBookFile(Long chatId, Document doc) {
         if (processingUsers.contains(chatId)) {
             sendText(chatId, "⚠️ 上一本书正在处理中，请稍候...");
             return;
@@ -189,7 +190,15 @@ public class BookBot extends TelegramLongPollingBot {
 
                 log.info("file url: [{}]", fileUrl);
                 try (InputStream in = new URL(fileUrl).openStream()) {
-                    List<String> links = epubService.processEpub(in, doc.getFileName());
+                    String fileName = doc.getFileName().toLowerCase();
+                    List<String> links;
+                    if (fileName.endsWith(".epub")) {
+                        links = epubService.processEpub(in, doc.getFileName());
+                    } else if (fileName.endsWith(".txt")) {
+                        links = epubService.processTxt(in, doc.getFileName());
+                    } else {
+                        throw new IllegalArgumentException("不支持的文件格式");
+                    }
                     if (links.isEmpty()) {
                         sendText(chatId, "❌ 解析失败或内容为空。");
                     } else {

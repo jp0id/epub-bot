@@ -12,10 +12,14 @@ import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -48,7 +52,7 @@ public class EpubService {
         int currentLength = 0;
         int pageCounter = 1;
 
-        log.info("开始解析书籍: {} (ID: {})", bookTitle, bookId);
+        log.info("开始解析epub书籍: {} (ID: {})", bookTitle, bookId);
 
         for (Resource res : contents) {
             try {
@@ -68,7 +72,7 @@ public class EpubService {
                     int childLen = child.text().length();
 
                     if (!child.select("img").isEmpty() || child.tagName().equalsIgnoreCase("img") || child.tagName().equalsIgnoreCase("svg")) {
-                        childLen += 1000;
+                        childLen += 500;
                     }
 
                     int minPageThreshold = 800;
@@ -95,7 +99,7 @@ public class EpubService {
             pageUrls.add(pageUrl);
             bookmarkService.createBookmarkToken(bookTitle, bookTitle + " (" + pageCounter + ") - End", pageUrl, token);
         }
-
+        log.info("解析epub书籍完成: {} (ID: {})", bookTitle, bookId);
         return pageUrls;
     }
 
@@ -103,6 +107,60 @@ public class EpubService {
         String html = buildHtmlTemplate(bookTitle, content, pageIndex, isLastPage, token);
         String path = "books/" + bookId + "/" + pageIndex + ".html";
         return r2StorageService.uploadFile(path, html.getBytes(StandardCharsets.UTF_8), "text/html");
+    }
+
+    public List<String> processTxt(InputStream txtStream, String fileName) throws Exception {
+        String bookTitle = fileName.replace(".txt", "").replace(".TXT", "");
+        String bookId = UUID.randomUUID().toString().replace("-", "");
+        List<String> pageUrls = new ArrayList<>();
+
+        log.info("开始解析TXT书籍: {} (ID: {})", bookTitle, bookId);
+
+        List<String> lines;
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(txtStream, StandardCharsets.UTF_8))) {
+            lines = reader.lines().toList();
+        }
+
+        StringBuilder currentHtmlBuffer = new StringBuilder();
+        int currentLength = 0;
+        int pageCounter = 1;
+
+        for (String line : lines) {
+            String safeLine = line.replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;");
+
+            String lineHtml = "<p>" + safeLine + "</p>";
+
+            if (safeLine.trim().isEmpty()) {
+                lineHtml = "<br/>";
+            }
+
+            int lineLen = safeLine.length();
+
+            if ((currentLength + lineLen > charsPerPage) && (currentLength > 1000)) {
+                String token = "bm_" + UUID.randomUUID().toString().substring(0, 8);
+                String pageUrl = uploadPage(bookId, bookTitle, pageCounter, currentHtmlBuffer.toString(), false, token);
+                pageUrls.add(pageUrl);
+                bookmarkService.createBookmarkToken(bookTitle, bookTitle + " (" + pageCounter + ")", pageUrl, token);
+
+                currentHtmlBuffer.setLength(0);
+                currentLength = 0;
+                pageCounter++;
+            }
+
+            currentHtmlBuffer.append(lineHtml);
+            currentLength += lineLen;
+        }
+
+        if (!currentHtmlBuffer.isEmpty()) {
+            String token = "bm_" + UUID.randomUUID().toString().substring(0, 8);
+            String pageUrl = uploadPage(bookId, bookTitle, pageCounter, currentHtmlBuffer.toString(), true, token);
+            pageUrls.add(pageUrl);
+            bookmarkService.createBookmarkToken(bookTitle, bookTitle + " (" + pageCounter + ") - End", pageUrl, token);
+        }
+        log.info("解析TXT书籍完成: {} (ID: {})", bookTitle, bookId);
+        return pageUrls;
     }
 
     private void handleImagesR2(Document doc, Book book, String currentResourceHref, String bookId) {
