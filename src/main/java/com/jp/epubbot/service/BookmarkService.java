@@ -9,8 +9,11 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,6 +62,7 @@ public class BookmarkService {
         if (!dir.exists()) dir.mkdirs();
     }
 
+    @Retryable(value = Exception.class, maxAttempts = 3, backoff = @Backoff(delay = 1000, multiplier = 1.5))
     public void createBookmarkToken(String bookName, String chapterTitle, String url, String tokenStr) {
         BookmarkToken token = new BookmarkToken();
         token.setToken(tokenStr);
@@ -75,6 +79,7 @@ public class BookmarkService {
                 .orElse(null);
     }
 
+    @Retryable(value = Exception.class, maxAttempts = 3, backoff = @Backoff(delay = 1000))
     public void saveBookmarkForUser(Long userId, BookmarkInfo info) {
         UserBookmark bookmark = new UserBookmark();
         bookmark.setUserId(userId);
@@ -106,7 +111,6 @@ public class BookmarkService {
         }
     }
 
-    // 对应 /list 命令
     public String findAllBooks() {
         List<BookmarkToken> books = tokenRepo.findAllFirstChapters();
 
@@ -181,32 +185,36 @@ public class BookmarkService {
 
     @Transactional
     public boolean deleteBook(String bookName, Long userId) {
-        // 鉴权逻辑
-        if (admins.isEmpty() || admins.contains(String.valueOf(userId))) {
+        try {
+            if (admins.isEmpty() || admins.contains(String.valueOf(userId))) {
 
-            try {
-                BookmarkToken token = tokenRepo.findFirstByBookName(bookName);
+                try {
+                    BookmarkToken token = tokenRepo.findFirstByBookName(bookName);
 
-                if (token != null && token.getUrl() != null) {
-                    log.info("book token url: [{}]", token.getUrl());
-                    String bookId = extractBookIdFromUrlFromLocalDB(token.getUrl());
-                    if (bookId != null) {
-                        log.info("正在删除本地书籍文件, BookName: {}, BookId: {}", bookName, bookId);
-                        localBookService.deleteBookDirectory(bookId);
-                    } else {
-                        bookId = extractBookIdFromUrlFromR2(token.getUrl());
-                        log.info("正在删除R2书籍文件, BookName: {}, BookId: {}", bookName, bookId);
-                        r2StorageService.deleteFolder("books/" + bookId);
+                    if (token != null && token.getUrl() != null) {
+                        log.info("book token url: [{}]", token.getUrl());
+                        String bookId = extractBookIdFromUrlFromLocalDB(token.getUrl());
+                        if (bookId != null) {
+                            log.info("正在删除本地书籍文件, BookName: {}, BookId: {}", bookName, bookId);
+                            localBookService.deleteBookDirectory(bookId);
+                        } else {
+                            bookId = extractBookIdFromUrlFromR2(token.getUrl());
+                            log.info("正在删除R2书籍文件, BookName: {}, BookId: {}", bookName, bookId);
+                            r2StorageService.deleteFolder("books/" + bookId);
+                        }
                     }
+                } catch (Exception e) {
+                    log.error("删除文件失败，但继续删除数据库记录", e);
                 }
-            } catch (Exception e) {
-                log.error("删除文件失败，但继续删除数据库记录", e);
+                tokenRepo.deleteByBookName(bookName);
+                return true;
+            } else {
+                return false;
             }
-            tokenRepo.deleteByBookName(bookName);
-            return true;
-        } else {
-            return false;
+        } catch (CannotAcquireLockException e) {
+            log.error("database is locked!");
         }
+        return false;
     }
 
     private String extractBookIdFromUrlFromLocalDB(String url) {
