@@ -1,5 +1,6 @@
 package com.jp.epubbot.service;
 
+import com.jp.epubbot.entity.BookmarkToken;
 import io.documentnode.epub4j.domain.Book;
 import io.documentnode.epub4j.domain.Resource;
 import io.documentnode.epub4j.epub.EpubReader;
@@ -42,6 +43,13 @@ public class EpubService {
         Book book = new EpubReader().readEpub(epubStream);
 
         String bookTitle = (book.getTitle() != null && !book.getTitle().isEmpty()) ? book.getTitle() : fileName;
+
+        BookmarkToken existsBook = bookmarkService.findBook(bookTitle);
+
+        if (existsBook != null) {
+            log.warn("processEpub [{}] is exists. ", bookTitle);
+            return List.of();
+        }
 
         String bookId = UUID.randomUUID().toString().replace("-", "");
 
@@ -113,6 +121,12 @@ public class EpubService {
         String bookTitle = fileName.replace(".txt", "").replace(".TXT", "");
         String bookId = UUID.randomUUID().toString().replace("-", "");
         List<String> pageUrls = new ArrayList<>();
+
+        BookmarkToken existsBook = bookmarkService.findBook(bookTitle);
+        if (existsBook != null) {
+            log.warn("processTxt [{}] is exists. ", bookTitle);
+            return List.of();
+        }
 
         log.info("开始解析TXT书籍: {} (ID: {})", bookTitle, bookId);
 

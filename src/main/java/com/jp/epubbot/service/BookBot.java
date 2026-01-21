@@ -128,7 +128,7 @@ public class BookBot extends TelegramLongPollingBot {
                 sendText(chatId, "❌ 书签链接已失效或不存在。");
             }
         } else {
-            sendText(chatId, "欢迎！\n1. 发送 EPUB 文件开始阅读。\n2. 阅读时点击底部的“保存书签”。\n3. 可通过 mini app 查看书签。");
+            sendText(chatId, "欢迎！\n1. 发送 EPUB 文件(仅限管理员用户)开始阅读。\n2. 阅读时点击底部的“保存书签”。\n3. 可通过 mini app 查看书签。");
         }
     }
 
@@ -200,7 +200,7 @@ public class BookBot extends TelegramLongPollingBot {
                         throw new IllegalArgumentException("不支持的文件格式");
                     }
                     if (links.isEmpty()) {
-                        sendText(chatId, "❌ 解析失败或内容为空。");
+                        sendText(chatId, "❌ 该书已存在，请直接搜索该书！");
                     } else {
                         StringBuilder sb = new StringBuilder("✅ **处理完成！**\n");
                         sb.append("共 ").append(links.size()).append(" 页。\n\n");

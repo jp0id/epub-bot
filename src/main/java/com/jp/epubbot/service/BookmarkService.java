@@ -300,4 +300,8 @@ public class BookmarkService {
         }
         return 0;
     }
+
+    public BookmarkToken findBook(String bookName) {
+        return tokenRepo.findFirstByBookName(bookName);
+    }
 }
