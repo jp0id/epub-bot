@@ -11,6 +11,9 @@
 
 ## 部署
 
+* 打开cloudflare目录
+* 登录cloudflare `wrangler login`
+* 创建worker `npx wrangler deploy`
 * 下载 `docker-compose.yml`
 * 修改 `docker-compose.yml`
 * 运行命令 `docker-compose up -d`
@@ -33,17 +36,11 @@
 
 ## 示图
 
-<image src="https://raw.githubusercontent.com/jp0id/epub-bot/refs/heads/master/img/%E6%88%AA%E5%B1%8F2026-01-07%2013.41.40.png" width="600"></image>
+<image src="https://raw.githubusercontent.com/jp0id/epub-bot/refs/heads/master/img/%E6%88%AA%E5%B1%8F2026-01-22%2013.46.09.png" width="600"></image>
 
-<image src="https://raw.githubusercontent.com/jp0id/epub-bot/refs/heads/master/img/%E6%88%AA%E5%B1%8F2026-01-07%2013.41.47.png" width="600"></image>
+<image src="https://raw.githubusercontent.com/jp0id/epub-bot/refs/heads/master/img/%E6%88%AA%E5%B1%8F2026-01-22%2013.46.20.png" width="600"></image>
 
-<image src="https://raw.githubusercontent.com/jp0id/epub-bot/refs/heads/master/img/%E6%88%AA%E5%B1%8F2026-01-07%2013.40.58.png" width="600"></image>
-
-<image src="https://raw.githubusercontent.com/jp0id/epub-bot/refs/heads/master/img/%E6%88%AA%E5%B1%8F2026-01-07%2013.43.01.png" width="600"></image>
-
-<image src="https://raw.githubusercontent.com/jp0id/epub-bot/refs/heads/master/img/%E6%88%AA%E5%B1%8F2026-01-07%2013.46.44.png" width="600"></image>
-
-<image src="https://raw.githubusercontent.com/jp0id/epub-bot/refs/heads/master/img/%E6%88%AA%E5%B1%8F2026-01-07%2013.41.07.png" width="600"></image>
+<image src="https://raw.githubusercontent.com/jp0id/epub-bot/refs/heads/master/img/%E6%88%AA%E5%B1%8F2026-01-22%2013.47.01.png" width="600"></image>
 
 ## 贡献
 
