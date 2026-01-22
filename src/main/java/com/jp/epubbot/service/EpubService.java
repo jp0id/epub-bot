@@ -254,6 +254,8 @@ public class EpubService {
                             margin-bottom: 20px;
                             font-weight: 600;
                             padding-right: 80px;
+                            padding-left: 80px;
+                            text-align: center;
                         }
                 
                         @media (prefers-color-scheme: dark) {
@@ -303,11 +305,9 @@ public class EpubService {
                             opacity: 1;
                         }
                 
-                        /* --- 悬浮字体切换按钮 --- */
-                        .font-switch-btn {
+                        .font-switch-btn, .bookmark-btn {
                             position: fixed;
                             top: 15px;
-                            right: 15px;
                             background-color: rgba(255, 255, 255, 0.9);
                             border: 1px solid #d4d0b8;
                             color: #5d5d5d;
@@ -324,13 +324,21 @@ public class EpubService {
                             -webkit-tap-highlight-color: transparent;
                         }
                 
-                        .font-switch-btn:active {
+                        .font-switch-btn {
+                            left: 15px;
+                        }
+                
+                        .bookmark-btn {
+                            right: 15px;
+                        }
+                
+                        .font-switch-btn:active, .bookmark-btn:active {
                             transform: scale(0.95);
                             background-color: #f0f0f0;
                         }
                 
                         @media (prefers-color-scheme: dark) {
-                            .font-switch-btn {
+                            .font-switch-btn, .bookmark-btn {
                                 background-color: rgba(50, 50, 50, 0.9);
                                 color: #ccc;
                                 border-color: #444;
@@ -437,7 +445,7 @@ public class EpubService {
                                 color: #ccc;
                             }
                         }
-                        /* Toast 样式 (新增，用于书签提示) */
+                        /* Toast 样式 */
                         .toast {
                             position: fixed;
                             top: 20px;
@@ -500,6 +508,12 @@ public class EpubService {
                 
                 <div id="toast" class="toast"></div>
                 
+                <!-- 新增：悬浮书签按钮 (左上角) -->
+                <div id="bookmarkBtn" class="bookmark-btn" onclick="saveBookmark()">
+                    🔖 书签保存
+                </div>
+                
+                <!-- 悬浮字体按钮 (右上角) -->
                 <div id="fontBtn" class="font-switch-btn" onclick="toggleFont()">
                     Aa 宋体
                 </div>
@@ -533,11 +547,7 @@ public class EpubService {
                            placeholder="页"
                            value="%d"
                            onkeyup="handlePageInput(event)">
-                
-                    <button onclick="saveBookmark()" class="btn btn-secondary">
-                        🔖 保存书签
-                    </button>
-                
+
                     <a id="nextBtn"
                        href="%s"
                        onclick="handleNextPage(event)"
