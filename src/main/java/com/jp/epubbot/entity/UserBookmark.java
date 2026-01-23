@@ -3,6 +3,8 @@ package com.jp.epubbot.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 /**
  * @Author: J.P
  * @Date: 2026/1/9 12:19
@@ -21,4 +23,21 @@ public class UserBookmark {
     private String bookName;
     private String chapterTitle;
     private String url;
+
+    @Column(name = "create_time", updatable = false)
+    private LocalDateTime createTime;
+
+    @Column(name = "update_time")
+    private LocalDateTime updateTime;
+
+    @PrePersist
+    protected void onCreate() {
+        createTime = LocalDateTime.now();
+        updateTime = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updateTime = LocalDateTime.now();
+    }
 }

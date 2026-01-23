@@ -9,6 +9,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Slf4j
@@ -349,7 +350,8 @@ public class MiniAppController {
                 BookmarkService.BookmarkInfo info = new BookmarkService.BookmarkInfo(
                         bookName,
                         chapterTitle != null ? chapterTitle : "未知章节",
-                        url
+                        url,
+                        LocalDateTime.now()
                 );
 
                 bookmarkService.saveBookmarkForUser(userId, info);

@@ -12,12 +12,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping;
 
 import java.io.File;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -29,6 +32,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class BookmarkService {
 
+    private final RequestMappingInfoHandlerMapping requestMappingInfoHandlerMapping;
     @Value("${telegram.bot.admins:}")
     private String adminList;
 
@@ -48,11 +52,13 @@ public class BookmarkService {
         private String bookName;
         private String chapterTitle;
         private String url;
+        private LocalDateTime updateTime;
 
-        public BookmarkInfo(String bookName, String chapterTitle, String url) {
+        public BookmarkInfo(String bookName, String chapterTitle, String url, LocalDateTime updateTime) {
             this.bookName = bookName;
             this.chapterTitle = chapterTitle;
             this.url = url;
+            this.updateTime = updateTime;
         }
     }
 
@@ -77,7 +83,7 @@ public class BookmarkService {
 
     public BookmarkInfo getBookmarkByToken(String tokenStr) {
         return tokenRepo.findById(tokenStr)
-                .map(t -> new BookmarkInfo(t.getBookName(), t.getChapterTitle(), t.getUrl()))
+                .map(t -> new BookmarkInfo(t.getBookName(), t.getChapterTitle(), t.getUrl(), LocalDateTime.now()))
                 .orElse(null);
     }
 
@@ -88,13 +94,18 @@ public class BookmarkService {
         bookmark.setBookName(info.getBookName());
         bookmark.setChapterTitle(info.getChapterTitle());
         bookmark.setUrl(info.getUrl());
+        bookmark.setCreateTime(info.getUpdateTime());
+        bookmark.setUpdateTime(info.getUpdateTime());
         bookmarkRepo.save(bookmark);
     }
 
-    public List<BookmarkInfo> getUserBookmarks(Long userId) {
-        return bookmarkRepo.findByUserId(userId).stream()
-                .map(b -> new BookmarkInfo(b.getBookName(), b.getChapterTitle(), b.getUrl()))
-                .collect(Collectors.toList());
+    public List<BookmarkService.BookmarkInfo> getUserBookmarks(Long userId) {
+        List<BookmarkService.BookmarkInfo> allBookmarks = new ArrayList<>();
+        List<UserBookmark> byUserIdOrderByUpdateTimeDesc = bookmarkRepo.findByUserIdOrderByUpdateTimeDesc(userId);
+        for (UserBookmark userBookmark : byUserIdOrderByUpdateTimeDesc) {
+            allBookmarks.add(new BookmarkInfo(userBookmark.getBookName(), userBookmark.getChapterTitle(), userBookmark.getUrl(), userBookmark.getUpdateTime()));
+        }
+        return allBookmarks;
     }
 
     @Transactional

@@ -2,6 +2,7 @@ package com.jp.epubbot.repository;
 
 import com.jp.epubbot.entity.UserBookmark;
 import org.springframework.data.jpa.repository.JpaRepository;
+
 import java.util.List;
 
 /**
@@ -13,4 +14,5 @@ public interface UserBookmarkRepository extends JpaRepository<UserBookmark, Long
     List<UserBookmark> findByUserId(Long userId);
     void deleteByUserId(Long userId);
     void deleteByUserIdAndUrl(Long userId, String url);
+    List<UserBookmark> findByUserIdOrderByUpdateTimeDesc(Long userId);
 }
