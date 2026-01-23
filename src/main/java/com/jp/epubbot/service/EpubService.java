@@ -6,6 +6,7 @@ import io.documentnode.epub4j.domain.Resource;
 import io.documentnode.epub4j.epub.EpubReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -20,7 +21,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -46,9 +46,9 @@ public class EpubService {
 
         BookmarkToken existsBook = bookmarkService.findBook(bookTitle);
 
-        if (existsBook != null) {
+        if (existsBook != null && StringUtils.isNotEmpty(existsBook.getUrl())) {
             log.warn("processEpub [{}] is exists. ", bookTitle);
-            return List.of();
+            return List.of("exists", existsBook.getUrl());
         }
 
         String bookId = UUID.randomUUID().toString().replace("-", "");
@@ -123,9 +123,9 @@ public class EpubService {
         List<String> pageUrls = new ArrayList<>();
 
         BookmarkToken existsBook = bookmarkService.findBook(bookTitle);
-        if (existsBook != null) {
+        if (existsBook != null && StringUtils.isNotEmpty(existsBook.getUrl())) {
             log.warn("processTxt [{}] is exists. ", bookTitle);
-            return List.of();
+            return List.of("exists", existsBook.getUrl());
         }
 
         log.info("开始解析TXT书籍: {} (ID: {})", bookTitle, bookId);
@@ -547,7 +547,7 @@ public class EpubService {
                            placeholder="页"
                            value="%d"
                            onkeyup="handlePageInput(event)">
-
+                
                     <a id="nextBtn"
                        href="%s"
                        onclick="handleNextPage(event)"

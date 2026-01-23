@@ -80,7 +80,7 @@ public class BookBot extends TelegramLongPollingBot {
                 }
                 Document doc = update.getMessage().getDocument();
                 String fileName = doc.getFileName();
-                if (fileName != null && (fileName.toLowerCase().endsWith(".epub") || fileName.toLowerCase().endsWith(".txt")))  {
+                if (fileName != null && (fileName.toLowerCase().endsWith(".epub") || fileName.toLowerCase().endsWith(".txt"))) {
                     handleBookFile(chatId, doc);
                 } else {
                     sendText(chatId, "请发送 .epub 格式的文件。");
@@ -200,13 +200,18 @@ public class BookBot extends TelegramLongPollingBot {
                         throw new IllegalArgumentException("不支持的文件格式");
                     }
                     if (links.isEmpty()) {
-                        sendText(chatId, "❌ 该书已存在，请直接搜索该书！");
+                        sendText(chatId, "❌ 解析失败或内容为空。");
                     } else {
-                        StringBuilder sb = new StringBuilder("✅ **处理完成！**\n");
-                        sb.append("共 ").append(links.size()).append(" 页。\n\n");
-                        sb.append("📖 [点击开始阅读](").append(links.get(0)).append(")\n\n");
-                        sb.append("💡 阅读时点击底部的 **[保存书签]** 即可记录进度。");
-
+                        StringBuilder sb = new StringBuilder();
+                        if (links.get(0).equals("exists")) {
+                            sb.append("✅ **该书已存在**\n");
+                            sb.append("📖 [点击开始阅读](").append(links.get(1)).append(")\n\n");
+                        } else {
+                            sb.append("✅ **处理完成！**\n");
+                            sb.append("共 ").append(links.size()).append(" 页。\n\n");
+                            sb.append("📖 [点击开始阅读](").append(links.get(0)).append(")\n\n");
+                            sb.append("💡 阅读时点击底部的 **[保存书签]** 即可记录进度。");
+                        }
                         SendMessage message = new SendMessage();
                         message.setChatId(chatId);
                         message.setText(sb.toString());

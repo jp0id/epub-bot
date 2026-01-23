@@ -31,6 +31,9 @@ public interface BookmarkTokenRepository extends JpaRepository<BookmarkToken, St
     @Query("SELECT b FROM BookmarkToken b WHERE (b.url LIKE %:path1% OR b.url LIKE %:path2%)")
     List<BookmarkToken> findByBookIdDual(@Param("path1") String path1, @Param("path2") String path2);
 
+    @Query("SELECT b FROM BookmarkToken b WHERE b.bookName = :bookName AND b.chapterTitle LIKE '%(1)%'")
+    BookmarkToken findFirstBookByBookName(String bookName);
+
     BookmarkToken findFirstByBookName(String bookName);
 
     @Query("SELECT COUNT(b) FROM BookmarkToken b WHERE b.url LIKE %:path1% OR b.url LIKE %:path2%")
