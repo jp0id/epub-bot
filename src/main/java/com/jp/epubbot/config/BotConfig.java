@@ -2,7 +2,7 @@ package com.jp.epubbot.config;
 
 import com.jp.epubbot.service.BookBot;
 import com.jp.epubbot.service.BookmarkService;
-import com.jp.epubbot.service.EpubService;
+import com.jp.epubbot.service.BookParseService;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -45,8 +45,8 @@ public class BotConfig {
     }
 
     @Bean
-    public BookBot bookBot(DefaultBotOptions options, EpubService epubService, BookmarkService bookmarkService) {
-        return new BookBot(options, botToken, botUsername, epubService, bookmarkService, adminList, webappUrl);
+    public BookBot bookBot(DefaultBotOptions options, BookParseService bookParseService, BookmarkService bookmarkService) {
+        return new BookBot(options, botToken, botUsername, bookParseService, bookmarkService, adminList, webappUrl);
     }
 
     @Bean

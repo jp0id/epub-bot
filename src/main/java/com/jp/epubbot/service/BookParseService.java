@@ -7,6 +7,13 @@ import io.documentnode.epub4j.epub.EpubReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDDocumentInformation;
+import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
+import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
+import org.apache.pdfbox.rendering.ImageType;
+import org.apache.pdfbox.rendering.PDFRenderer;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -14,18 +21,19 @@ import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
 @Slf4j
-@Service
+@Service("bookmarkService")
 @RequiredArgsConstructor
-public class EpubService {
+public class BookParseService {
 
     private final BookmarkService bookmarkService;
     private final R2StorageService r2StorageService;
@@ -175,6 +183,133 @@ public class EpubService {
         }
         log.info("解析TXT书籍完成: {} (ID: {})", bookTitle, bookId);
         return pageUrls;
+    }
+
+    public List<String> processPdf(InputStream pdfStream, String fileName) throws Exception {
+        PDDocument document = null;
+        try {
+            try {
+                document = PDDocument.load(pdfStream);
+            } catch (InvalidPasswordException e) {
+                log.error("PDF文件已加密，需要密码: {}", fileName);
+                throw new Exception("该PDF文件已加密，请先移除密码后上传");
+            }
+
+            AccessPermission ap = document.getCurrentAccessPermission();
+            if (!ap.canExtractContent()) {
+                ap.setCanExtractContent(true);
+                log.info("已强制解除PDF内容提取限制: {}", fileName);
+            }
+
+            document.setAllSecurityToBeRemoved(true);
+
+            PDDocumentInformation info = document.getDocumentInformation();
+            String titleFromMeta = info.getTitle();
+            String bookTitle = (titleFromMeta != null && !titleFromMeta.trim().isEmpty())
+                    ? titleFromMeta
+                    : fileName.replace(".pdf", "").replace(".PDF", "");
+
+            BookmarkToken existsBook = bookmarkService.findBook(bookTitle);
+            if (existsBook != null && StringUtils.isNotEmpty(existsBook.getUrl())) {
+                log.warn("processPdf [{}] is exists. ", bookTitle);
+                return List.of("exists", existsBook.getUrl());
+            }
+
+            String bookId = UUID.randomUUID().toString().replace("-", "");
+            List<String> pageUrls = new ArrayList<>();
+
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setSortByPosition(true);
+
+            // 准备图片渲染器 (用于处理纯图片页面)
+            PDFRenderer renderer = new PDFRenderer(document);
+
+            StringBuilder currentHtmlBuffer = new StringBuilder();
+            int currentLength = 0;
+            int pageCounter = 1;
+            int totalPdfPages = document.getNumberOfPages();
+
+            for (int pageIndexForImage = 0; pageIndexForImage < totalPdfPages; pageIndexForImage++) { // PDFBox 页码从 0 开始渲染，但提取文本是从 1 开始
+                int pageIndexForText = pageIndexForImage + 1; // 文本提取用 1-based
+
+                stripper.setStartPage(pageIndexForText);
+                stripper.setEndPage(pageIndexForText);
+
+                try {
+                    String pageText = stripper.getText(document);
+
+                    // 判断是否为“纯图片”页面 如果提取出的有效字符少于 10 个，通常认为是扫描件或全图页
+                    if (pageText.trim().length() < 10) {
+
+                        BufferedImage image = renderer.renderImageWithDPI(pageIndexForImage, 150, ImageType.RGB);
+
+                        String imageSrc = convertImageToBase64(image);
+                        String imgHtml = String.format(
+                                "<div class='pdf-image-page'><img src='%s' style='width:100%%; display:block;' /></div>",
+                                imageSrc
+                        );
+
+                        if (currentLength > 0) {
+                            String token = "bm_" + UUID.randomUUID().toString().substring(0, 8);
+                            String pageUrl = uploadPage(bookId, bookTitle, pageCounter, currentHtmlBuffer.toString(), false, token);
+                            pageUrls.add(pageUrl);
+                            bookmarkService.createBookmarkToken(bookTitle, bookTitle + " (" + pageCounter + ")", pageUrl, token);
+                            currentHtmlBuffer.setLength(0);
+                            currentLength = 0;
+                            pageCounter++;
+                        }
+
+                        String token = "bm_" + UUID.randomUUID().toString().substring(0, 8);
+                        String pageUrl = uploadPage(bookId, bookTitle, pageCounter, imgHtml, false, token);
+                        pageUrls.add(pageUrl);
+                        bookmarkService.createBookmarkToken(bookTitle, bookTitle + " (" + pageCounter + ") [图]", pageUrl, token);
+                        pageCounter++;
+
+                    } else {
+                        String[] lines = pageText.split("\\r?\\n");
+                        for (String line : lines) {
+                            String safeLine = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+                            String lineHtml = safeLine.trim().isEmpty() ? "<br/>" : "<p>" + safeLine + "</p>";
+
+                            int lineLen = safeLine.length();
+
+                            if ((currentLength + lineLen > charsPerPage) && (currentLength > 800)) {
+                                String token = "bm_" + UUID.randomUUID().toString().substring(0, 8);
+                                String pageUrl = uploadPage(bookId, bookTitle, pageCounter, currentHtmlBuffer.toString(), false, token);
+                                pageUrls.add(pageUrl);
+                                bookmarkService.createBookmarkToken(bookTitle, bookTitle + " (" + pageCounter + ")", pageUrl, token);
+                                currentHtmlBuffer.setLength(0);
+                                currentLength = 0;
+                                pageCounter++;
+                            }
+                            currentHtmlBuffer.append(lineHtml);
+                            currentLength += lineLen;
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("解析PDF第 {} 页失败", pageIndexForText, e);
+                }
+            }
+
+            if (!currentHtmlBuffer.isEmpty()) {
+                String token = "bm_" + UUID.randomUUID().toString().substring(0, 8);
+                String pageUrl = uploadPage(bookId, bookTitle, pageCounter, currentHtmlBuffer.toString(), true, token);
+                pageUrls.add(pageUrl);
+                bookmarkService.createBookmarkToken(bookTitle, bookTitle + " (" + pageCounter + ") - End", pageUrl, token);
+            }
+            return pageUrls;
+        } finally {
+            if (document != null) {
+                document.close();
+            }
+        }
+    }
+
+    private String convertImageToBase64(BufferedImage image) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(image, "jpg", baos);
+        byte[] bytes = baos.toByteArray();
+        return "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(bytes);
     }
 
     private void handleImagesR2(Document doc, Book book, String currentResourceHref, String bookId) {

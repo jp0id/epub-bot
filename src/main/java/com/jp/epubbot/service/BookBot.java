@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class BookBot extends TelegramLongPollingBot {
 
-    private final EpubService epubService;
+    private final BookParseService bookParseService;
     private final BookmarkService bookmarkService;
     private final String botUsername;
     private final String webappUrl;
@@ -41,10 +41,10 @@ public class BookBot extends TelegramLongPollingBot {
     private final String baseUrl;
 
     public BookBot(DefaultBotOptions options, String botToken, String botUsername,
-                   EpubService epubService, BookmarkService bookmarkService, String adminList, String webappUrl) {
+                   BookParseService bookParseService, BookmarkService bookmarkService, String adminList, String webappUrl) {
         super(options, botToken);
         this.botUsername = botUsername;
-        this.epubService = epubService;
+        this.bookParseService = bookParseService;
         this.bookmarkService = bookmarkService;
         this.webappUrl = webappUrl;
         if (StringUtils.isNotEmpty(adminList)) {
@@ -193,11 +193,13 @@ public class BookBot extends TelegramLongPollingBot {
                     String fileName = doc.getFileName().toLowerCase();
                     List<String> links;
                     if (fileName.endsWith(".epub")) {
-                        links = epubService.processEpub(in, doc.getFileName());
+                        links = bookParseService.processEpub(in, doc.getFileName());
                     } else if (fileName.endsWith(".txt")) {
-                        links = epubService.processTxt(in, doc.getFileName());
+                        links = bookParseService.processTxt(in, doc.getFileName());
+                    } else if (fileName.endsWith(".pdf")) {
+                        links = bookParseService.processPdf(in, doc.getFileName());
                     } else {
-                        throw new IllegalArgumentException("不支持的文件格式");
+                        throw new IllegalArgumentException("仅支持 EPUB, TXT, PDF 格式");
                     }
                     if (links.isEmpty()) {
                         sendText(chatId, "❌ 解析失败或内容为空。");
