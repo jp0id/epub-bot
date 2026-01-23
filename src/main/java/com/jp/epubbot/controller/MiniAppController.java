@@ -166,7 +166,7 @@ public class MiniAppController {
             int currentPage = 0;
             int startGroupIndex = 0;
             int endGroupIndex = 0;
-            Map<Integer, Map<String, Integer>> pageMap = new HashMap<>(); // page -> {startGroup, endGroup}
+            Map<Integer, Map<String, Integer>> pageMap = new TreeMap<>(); // page -> {startGroup, endGroup}
 
             for (int i = 0; i < allGroups.size(); i++) {
                 Map<String, Object> group = allGroups.get(i);
