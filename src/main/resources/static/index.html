@@ -90,34 +90,35 @@
             background: white;
         }
 
-       /* 放在你的主 css 文件里 */
+        /* 放在你的主 css 文件里 */
         .loading-center {
-        min-height: 300px;           /* 至少占点高度，避免页面跳太厉害 */
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 16px;
-        color: #666;
-        font-size: 1.2rem;
-        padding: 40px 20px;
+            min-height: 300px; /* 至少占点高度，避免页面跳太厉害 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            color: #666;
+            font-size: 1.2rem;
+            padding: 40px 20px;
         }
 
-/* 转圈圈动画 */
-    .spinner {
-    width: 48px;
-    height: 48px;
-    border: 5px solid #e0e0e0;
-    border-top-color: #3498db;   /* 你喜欢的主题色都可以换 */
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    }
+        /* 转圈圈动画 */
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 5px solid #e0e0e0;
+            border-top-color: #3498db; /* 你喜欢的主题色都可以换 */
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
 
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         .books-search button {
             flex-shrink: 0;
             padding: 10px 16px;
@@ -571,6 +572,24 @@
         .back-btn:hover {
             background: #e2e8f0;
         }
+
+        .btn-rename {
+            display: inline-block;
+            background: #ed8936; /* 橙色 */
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .btn-rename:hover {
+            background: #dd6b20; /* 深橙色 */
+        }
     </style>
 
     <!-- Telegram Web App SDK -->
@@ -850,6 +869,10 @@
 
                             <button class="btn-info" onclick="showBookChapters('${safeName}', '${safeUrl}')">
                                 📑 选页
+                            </button>
+
+                            <button class="btn-rename" onclick="renameBook('${safeName}')">
+                                ✏️ 重命名
                             </button>
 
                             <button class="delete-btn" onclick="deleteBook('${safeName}')">
@@ -1384,6 +1407,41 @@
         }
         document.querySelector('.buttons-container').style.display = 'flex';
         document.querySelector('.search-container').style.display = 'block';
+    }
+
+    async function renameBook(oldName) {
+        const userId = getUserId();
+        if (!userId) {
+            alert('无法获取用户信息');
+            return;
+        }
+        const newName = prompt(`请输入 "${oldName}" 的新名称:`, oldName);
+        if (newName === null) return;
+
+        const trimmedName = newName.trim();
+        if (trimmedName === "" || trimmedName === oldName) return;
+
+        try {
+            const targetUrl = new URL(`${API_BASE}/books/rename`);
+            targetUrl.searchParams.append('userId', userId);
+            targetUrl.searchParams.append('oldName', oldName);
+            targetUrl.searchParams.append('newName', trimmedName);
+
+            const response = await fetch(targetUrl.toString(), {
+                method: 'POST'
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert("重命名成功！");
+                await loadAllBooks(currentBooksPage);
+            } else {
+                alert("重命名失败: " + data.error);
+            }
+        } catch (e) {
+            alert("请求出错: " + e.message);
+        }
     }
 </script>
 

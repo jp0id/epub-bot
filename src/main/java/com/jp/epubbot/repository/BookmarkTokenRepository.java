@@ -42,4 +42,12 @@ public interface BookmarkTokenRepository extends JpaRepository<BookmarkToken, St
     @Query("SELECT b FROM BookmarkToken b WHERE b.url LIKE %:path1% OR b.url LIKE %:path2%")
     Page<BookmarkToken> findByBookIdDual(@Param("path1") String path1, @Param("path2") String path2, Pageable pageable);
 
+    boolean existsByBookName(String bookName);
+
+    @Modifying
+    @Query("UPDATE BookmarkToken b SET b.bookName = :newName WHERE b.bookName = :oldName")
+    int updateBookName(@Param("oldName") String oldName, @Param("newName") String newName);
+
+    List<BookmarkToken> findAllByBookName(String bookName);
+
 }

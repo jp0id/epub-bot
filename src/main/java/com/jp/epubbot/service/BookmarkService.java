@@ -41,6 +41,8 @@ public class BookmarkService {
 
     private List<String> admins;
 
+    private static final Pattern TITLE_PARSER = Pattern.compile("(.*)(\\s\\(\\d+\\).*)");
+
     @Data
     public static class BookmarkInfo {
         private String bookName;
@@ -303,5 +305,45 @@ public class BookmarkService {
 
     public BookmarkToken findBook(String bookName) {
         return tokenRepo.findFirstBookByBookName(bookName);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void renameBook(String userId, String oldName, String newName) {
+        log.info("用户 [{}] 请求重命名书籍: [{}] -> [{}]", userId, oldName, newName);
+
+        if (admins.isEmpty() || admins.contains(String.valueOf(userId))) {
+            if (oldName == null || newName == null || oldName.trim().isEmpty() || newName.trim().isEmpty()) {
+                throw new IllegalArgumentException("书名不能为空");
+            }
+
+            if (!tokenRepo.existsByBookName(oldName)) {
+                throw new IllegalArgumentException("书籍 [" + oldName + "] 不存在，无法重命名");
+            }
+
+            if (tokenRepo.existsByBookName(newName)) {
+                throw new IllegalArgumentException("书名 [" + newName + "] 已存在，请使用其他名称");
+            }
+
+            List<BookmarkToken> tokens = tokenRepo.findAllByBookName(oldName);
+
+            for (BookmarkToken token : tokens) {
+                token.setBookName(newName);
+
+                String oldTitle = token.getChapterTitle();
+                if (oldTitle != null) {
+                    Matcher matcher = TITLE_PARSER.matcher(oldTitle);
+
+                    if (matcher.matches()) {
+                        String suffix = matcher.group(2);
+                        token.setChapterTitle(newName + suffix);
+                    } else {
+                        token.setChapterTitle(newName);
+                    }
+                }
+            }
+            tokenRepo.saveAll(tokens);
+        } else {
+            throw new IllegalArgumentException("无权修改！");
+        }
     }
 }

@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -421,4 +423,46 @@ public class MiniAppController {
         return allGroups;
     }
 
+    @PostMapping("/books/rename")
+    public ResponseEntity<Map<String, Object>> renameBook(
+            @RequestParam String userId,
+            @RequestParam String oldName,
+            @RequestParam String newName) {
+
+        Map<String, Object> result = new HashMap<>();
+
+        if (StringUtils.isEmpty(userId)) {
+            result.put("success", false);
+            result.put("error", "用户ID不能为空");
+            return ResponseEntity.badRequest().body(result);
+        }
+
+        if (StringUtils.isEmpty(oldName) || StringUtils.isEmpty(newName)) {
+            result.put("success", false);
+            result.put("error", "书名不能为空");
+            return ResponseEntity.badRequest().body(result);
+        }
+
+        if (oldName.equals(newName)) {
+            result.put("success", false);
+            result.put("error", "新旧书名不能相同");
+            return ResponseEntity.badRequest().body(result);
+        }
+
+        try {
+            bookmarkService.renameBook(userId, oldName, newName);
+
+            result.put("success", true);
+            return ResponseEntity.ok(result);
+
+        } catch (IllegalArgumentException e) {
+            result.put("success", false);
+            result.put("error", e.getMessage());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", "重命名失败: " + e.getMessage());
+            return ResponseEntity.status(500).body(result);
+        }
+    }
 }
