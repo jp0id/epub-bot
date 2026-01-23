@@ -412,7 +412,7 @@ public class MiniAppController {
 
             List<Map<String, String>> groupBookmarks = new ArrayList<>();
             for (BookmarkService.BookmarkInfo bookmark : entry.getValue()) {
-                Map<String, String> bookmarkMap = new HashMap<>();
+                Map<String, String> bookmarkMap = new TreeMap<>();
                 bookmarkMap.put("bookName", bookmark.getBookName());
                 bookmarkMap.put("chapterTitle", bookmark.getChapterTitle());
                 bookmarkMap.put("url", bookmark.getUrl());
