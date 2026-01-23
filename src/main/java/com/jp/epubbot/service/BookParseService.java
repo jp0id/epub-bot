@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Slf4j
-@Service("bookmarkService")
+@Service("bookParseService")
 @RequiredArgsConstructor
 public class BookParseService {
 
