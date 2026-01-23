@@ -80,10 +80,10 @@ public class BookBot extends TelegramLongPollingBot {
                 }
                 Document doc = update.getMessage().getDocument();
                 String fileName = doc.getFileName();
-                if (fileName != null && (fileName.toLowerCase().endsWith(".epub") || fileName.toLowerCase().endsWith(".txt"))) {
+                if (fileName != null && (fileName.toLowerCase().endsWith(".epub") || fileName.toLowerCase().endsWith(".txt") || fileName.toLowerCase().endsWith(".pdf"))) {
                     handleBookFile(chatId, doc);
                 } else {
-                    sendText(chatId, "请发送 .epub 格式的文件。");
+                    sendText(chatId, "请发送 .epub .txt .pdf 格式的文件。");
                 }
                 return;
             }
