@@ -152,7 +152,7 @@ public class MiniAppController {
 
             List<BookmarkService.BookmarkInfo> allBookmarks = bookmarkService.getUserBookmarks(userId);
 
-            Map<String, List<BookmarkService.BookmarkInfo>> bookGroups = new TreeMap<>();
+            Map<String, List<BookmarkService.BookmarkInfo>> bookGroups = new LinkedHashMap<>();
             for (BookmarkService.BookmarkInfo bookmark : allBookmarks) {
                 String bookName = bookmark.getBookName();
                 if (bookName == null) bookName = "未知书籍";
@@ -166,7 +166,7 @@ public class MiniAppController {
             int currentPage = 0;
             int startGroupIndex = 0;
             int endGroupIndex = 0;
-            Map<Integer, Map<String, Integer>> pageMap = new TreeMap<>(); // page -> {startGroup, endGroup}
+            Map<Integer, Map<String, Integer>> pageMap = new LinkedHashMap<>(); // page -> {startGroup, endGroup}
 
             for (int i = 0; i < allGroups.size(); i++) {
                 Map<String, Object> group = allGroups.get(i);
@@ -407,12 +407,12 @@ public class MiniAppController {
     private static @NonNull List<Map<String, Object>> getAllGroups(Map<String, List<BookmarkService.BookmarkInfo>> bookGroups) {
         List<Map<String, Object>> allGroups = new ArrayList<>();
         for (Map.Entry<String, List<BookmarkService.BookmarkInfo>> entry : bookGroups.entrySet()) {
-            Map<String, Object> group = new TreeMap<>();
+            Map<String, Object> group = new LinkedHashMap<>();
             group.put("bookName", entry.getKey());
 
             List<Map<String, String>> groupBookmarks = new ArrayList<>();
             for (BookmarkService.BookmarkInfo bookmark : entry.getValue()) {
-                Map<String, String> bookmarkMap = new TreeMap<>();
+                Map<String, String> bookmarkMap = new LinkedHashMap<>();
                 bookmarkMap.put("bookName", bookmark.getBookName());
                 bookmarkMap.put("chapterTitle", bookmark.getChapterTitle());
                 bookmarkMap.put("url", bookmark.getUrl());

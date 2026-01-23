@@ -105,9 +105,7 @@ public class BookmarkService {
         for (UserBookmark userBookmark : byUserIdOrderByUpdateTimeDesc) {
             allBookmarks.add(new BookmarkInfo(userBookmark.getBookName(), userBookmark.getChapterTitle(), userBookmark.getUrl(), userBookmark.getUpdateTime()));
         }
-        for (BookmarkInfo allBookmark : allBookmarks) {
-            log.info("book mark: [{}]", allBookmark.getUpdateTime());
-        }
+
         return allBookmarks;
     }
 
