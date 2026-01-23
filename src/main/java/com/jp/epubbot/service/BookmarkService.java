@@ -105,6 +105,14 @@ public class BookmarkService {
         for (UserBookmark userBookmark : byUserIdOrderByUpdateTimeDesc) {
             allBookmarks.add(new BookmarkInfo(userBookmark.getBookName(), userBookmark.getChapterTitle(), userBookmark.getUrl(), userBookmark.getUpdateTime()));
         }
+        allBookmarks.sort((o1, o2) -> {
+            LocalDateTime t1 = o1.getUpdateTime();
+            LocalDateTime t2 = o2.getUpdateTime();
+            if (t1 == null && t2 == null) return 0;
+            if (t1 == null) return 1;
+            if (t2 == null) return -1;
+            return t2.compareTo(t1);
+        });
         return allBookmarks;
     }
 
