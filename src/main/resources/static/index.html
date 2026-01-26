@@ -1409,7 +1409,7 @@
         document.querySelector('.search-container').style.display = 'block';
     }
 
-    async function renameBook(oldName) {
+    function renameBook(oldName) {
         const userId = getUserId();
         if (!userId) {
             alert('无法获取用户信息');
@@ -1421,27 +1421,27 @@
         const trimmedName = newName.trim();
         if (trimmedName === "" || trimmedName === oldName) return;
 
-        try {
-            const targetUrl = new URL(`${API_BASE}/books/rename`);
-            targetUrl.searchParams.append('userId', userId);
-            targetUrl.searchParams.append('oldName', oldName);
-            targetUrl.searchParams.append('newName', trimmedName);
+        alert(`✅ 重命名请求已提交！\n\n"${oldName}" 即将变更为 "${trimmedName}"。\n\n由于全球CDN缓存刷新需要时间，更改将在 1~2 分钟后生效，请稍后刷新页面查看。`);
 
-            const response = await fetch(targetUrl.toString(), {
-                method: 'POST'
+        const targetUrl = new URL(`${API_BASE}/books/rename`);
+        targetUrl.searchParams.append('userId', userId);
+        targetUrl.searchParams.append('oldName', oldName);
+        targetUrl.searchParams.append('newName', trimmedName);
+
+        fetch(targetUrl.toString(), {
+            method: 'POST'
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log(`[后台日志] 书籍 "${oldName}" 重命名成功`);
+                } else {
+                    console.error(`[后台日志] 重命名失败: ${data.error}`);
+                }
+            })
+            .catch(e => {
+                console.error(`[后台日志] 请求网络错误: ${e.message}`);
             });
-
-            const data = await response.json();
-
-            if (data.success) {
-                alert("重命名成功！");
-                await loadAllBooks(currentBooksPage);
-            } else {
-                alert("重命名失败: " + data.error);
-            }
-        } catch (e) {
-            alert("请求出错: " + e.message);
-        }
     }
 </script>
 
