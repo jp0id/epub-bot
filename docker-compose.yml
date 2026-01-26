@@ -19,6 +19,9 @@ services:
       - CLOUD_R2_ACCOUNT_ID=
       - CLOUD_R2_BUCKET_NAME=
       - CLOUD_R2_PUBLIC_DOMAIN=
+      - CLOUDFLARE_API_TOKEN=
+      - CLOUDFLARE_ZONES_BOOK_8VOID_SBS=
+      - CLOUDFLARE_ZONES_ANOTHER_DOMAIN_COM=
     volumes:
       - ./data:/app/data
     blkio_config:

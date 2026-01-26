@@ -10,6 +10,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StreamUtils;
@@ -150,7 +151,10 @@ public class R2StorageService {
             }
             Document doc = Jsoup.parse(htmlContent);
             doc.title(newTitle);
-            // doc.select("h1.book-title").text(newTitle);
+            Element articleTitleElement = doc.getElementById("articleTitle");
+            if (articleTitleElement != null) {
+                articleTitleElement.text(newTitle);
+            }
             String newHtml = doc.html();
             byte[] contentBytes = newHtml.getBytes(StandardCharsets.UTF_8);
             ObjectMetadata metadata = new ObjectMetadata();
