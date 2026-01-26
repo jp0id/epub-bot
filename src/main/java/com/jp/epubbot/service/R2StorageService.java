@@ -155,6 +155,8 @@ public class R2StorageService {
             byte[] contentBytes = newHtml.getBytes(StandardCharsets.UTF_8);
             ObjectMetadata metadata = new ObjectMetadata();
             metadata.setContentType("text/html; charset=utf-8"); // 必须设置，否则浏览器会当成下载文件
+            // no-cache: 告诉 CDN 每次都要去 R2 验证文件有没有变 (ETag)，变了才下载，没变就用缓存。max-age=0: 缓存立即过期
+//            metadata.setHeader("Cache-Control", "no-cache, max-age=0");
             metadata.setContentLength(contentBytes.length);
             ByteArrayInputStream inputStream = new ByteArrayInputStream(contentBytes);
             s3Client.putObject(new PutObjectRequest(bucketName, fileKey, inputStream, metadata));

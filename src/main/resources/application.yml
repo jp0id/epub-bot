@@ -31,3 +31,9 @@ cloud:
     account-id: ${CLOUD_R2_ACCOUNT_ID:your-account-id}
     bucket-name: ${CLOUD_R2_BUCKET_NAME:epub-storage}
     public-domain: ${CLOUD_R2_PUBLIC_DOMAIN:your-public-domain}
+
+cloudflare:
+  api-token: "你的_全局_或_多区域_API_Token"
+  zones:
+    "book.8void.sbs": "zone_id_for_8void"
+    "static.another-domain.com": "zone_id_for_another"

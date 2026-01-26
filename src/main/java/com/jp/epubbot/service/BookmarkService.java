@@ -39,6 +39,7 @@ public class BookmarkService {
     private final BookmarkTokenRepository tokenRepo;
     private final UserBookmarkRepository bookmarkRepo;
     private final LocalBookService localBookService;
+    private final CloudflareService cloudflareService;
 
     private List<String> admins;
 
@@ -353,6 +354,7 @@ public class BookmarkService {
                 // 该功能可能会消耗大量的网络带宽和 R2 的操作次数，不过一般书籍最多几百页，也不是特别多，免费版完全够用。
                 String key = extractKeyByRegex(token.getUrl());
                 r2StorageService.updateHtmlTitle(key, newName);
+                cloudflareService.purgeCache(token.getUrl());
             }
             tokenRepo.saveAll(tokens);
         } else {
