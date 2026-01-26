@@ -8,11 +8,17 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.*;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StreamUtils;
+import org.springframework.util.StringUtils;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -123,6 +129,37 @@ public class R2StorageService {
 
         } catch (Exception e) {
             log.error("删除 R2 目录失败: {}", cleanPrefix, e);
+        }
+    }
+
+    /**
+     * 修改 R2 上 HTML 文件的标题
+     *
+     * @param fileKey  文件在 R2 上的路径 (例如: "books/9bfa.../1.html")
+     * @param newTitle 新的标题
+     */
+    public void updateHtmlTitle(String fileKey, String newTitle) {
+        if (fileKey == null || StringUtils.isEmpty(newTitle)) {
+            return;
+        }
+        try {
+            S3Object s3Object = s3Client.getObject(bucketName, fileKey);
+            String htmlContent;
+            try (InputStream is = s3Object.getObjectContent()) {
+                htmlContent = StreamUtils.copyToString(is, StandardCharsets.UTF_8);
+            }
+            Document doc = Jsoup.parse(htmlContent);
+            doc.title(newTitle);
+            // doc.select("h1.book-title").text(newTitle);
+            String newHtml = doc.html();
+            byte[] contentBytes = newHtml.getBytes(StandardCharsets.UTF_8);
+            ObjectMetadata metadata = new ObjectMetadata();
+            metadata.setContentType("text/html; charset=utf-8"); // 必须设置，否则浏览器会当成下载文件
+            metadata.setContentLength(contentBytes.length);
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(contentBytes);
+            s3Client.putObject(new PutObjectRequest(bucketName, fileKey, inputStream, metadata));
+        } catch (IOException e) {
+            throw new RuntimeException("修改 R2 文件失败: " + fileKey, e);
         }
     }
 }

@@ -12,12 +12,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping;
 
 import java.io.File;
 import java.time.LocalDateTime;
@@ -32,7 +30,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class BookmarkService {
 
-    private final RequestMappingInfoHandlerMapping requestMappingInfoHandlerMapping;
     @Value("${telegram.bot.admins:}")
     private String adminList;
 
@@ -352,10 +349,23 @@ public class BookmarkService {
                         token.setChapterTitle(newName);
                     }
                 }
+                // 如果一本书有 2000 页，你需要执行 2000 次下载 + 2000 次上传。
+                // 该功能可能会消耗大量的网络带宽和 R2 的操作次数，不过一般书籍最多几百页，也不是特别多，免费版完全够用。
+                String key = extractKeyByRegex(token.getUrl());
+                r2StorageService.updateHtmlTitle(key, newName);
             }
             tokenRepo.saveAll(tokens);
         } else {
             throw new IllegalArgumentException("无权修改！");
         }
+    }
+
+    private String extractKeyByRegex(String fullUrl) {
+        Pattern pattern = Pattern.compile("(books/.*)");
+        Matcher matcher = pattern.matcher(fullUrl);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return null;
     }
 }
