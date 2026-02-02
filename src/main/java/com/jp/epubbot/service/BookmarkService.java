@@ -79,6 +79,18 @@ public class BookmarkService {
         tokenRepo.save(token);
     }
 
+    public void createBookmarkTokenInLocal(String bookName, String chapterTitle, String url) {
+        String tokenStr = "bm_" + UUID.randomUUID().toString().substring(0, 8);
+
+        BookmarkToken token = new BookmarkToken();
+        token.setToken(tokenStr);
+        token.setBookName(bookName);
+        token.setChapterTitle(chapterTitle);
+        token.setUrl(url);
+
+        tokenRepo.save(token);
+    }
+
     public BookmarkInfo getBookmarkByToken(String tokenStr) {
         return tokenRepo.findById(tokenStr)
                 .map(t -> new BookmarkInfo(t.getBookName(), t.getChapterTitle(), t.getUrl(), LocalDateTime.now()))

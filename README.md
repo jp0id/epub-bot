@@ -29,6 +29,7 @@
 | `TELEGRAM_BOT_ADMINS`                 | `string` | `null`                     | bot的可上传书籍人的telegram id，多个使用`,`隔开，留空表示任何人都可上传epub文件 |
 | `TELEGRAM_BOT_BASE`                   | `string` | `https://api.telegram.org` | telegram api base url                              |
 | `APP_CHARS_PER_PAGE`                  | `int`    | `10000`                    | 每一页的字数                                             |
+| `APP_SAVE`                            | `string` | `cloudflare`               | 数据存储位置local/cloudflare                             |
 | `TELEGRAM_BOT_WEBAPP_URL`             | `string` | `null`                     | 服务地址，必须使用https协议                                   |
 | `CLOUD_R2_ACCESS_KEY`                 | `string` | `null`                     |                                                    |
 | `CLOUD_R2_SECRET_KEY`                 | `string` | `null`                     |                                                    |

@@ -20,6 +20,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StreamUtils;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -29,6 +30,9 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 @Slf4j
 @Service("bookParseService")
@@ -37,6 +41,7 @@ public class BookParseService {
 
     private final BookmarkService bookmarkService;
     private final R2StorageService r2StorageService;
+    private final LocalBookService localBookService;
 
     @Value("${app.chars-per-page:3000}")
     private int charsPerPage;
@@ -47,11 +52,22 @@ public class BookParseService {
     @Value("${telegram.bot.username}")
     private String botUsername;
 
+    @Value("${telegram.bot.webapp-url:}")
+    private String webAppUrl;
+
+    @Value("${app.save:cloudflare}")
+    private String saveType;
+
     public List<String> processEpub(java.io.InputStream epubStream, String fileName) throws Exception {
+        if ("local".equals(saveType)) {
+            return processEpubSaveLocal(epubStream, fileName);
+        }
+        return processEpubSaveCF(epubStream, fileName);
+    }
+
+    public List<String> processEpubSaveCF(java.io.InputStream epubStream, String fileName) throws Exception {
         Book book = new EpubReader().readEpub(epubStream);
-
         String bookTitle = (book.getTitle() != null && !book.getTitle().isEmpty()) ? book.getTitle() : fileName;
-
         BookmarkToken existsBook = bookmarkService.findBook(bookTitle);
 
         if (existsBook != null && StringUtils.isNotEmpty(existsBook.getUrl())) {
@@ -998,6 +1014,184 @@ public class BookParseService {
                 link.unwrap();
             }
             // 外部链接也去掉的话，直接去掉 if 判断，对所有 link 执行 unwrap() 即可
+        }
+    }
+
+    public List<String> processEpubSaveLocal(InputStream epubStream, String fileName) throws Exception {
+        Book book;
+        try {
+            book = new EpubReader().readEpub(epubStream);
+        } catch (Exception e) {
+            log.warn("EPUB 解析遇到错误 (可能是图片损坏)，尝试容错模式加载: {}", e.getMessage());
+            byte[] epubData = StreamUtils.copyToByteArray(epubStream);
+            book = loadEpubLeniently(epubData);
+        }
+
+        String bookTitle = (book.getTitle() != null && !book.getTitle().isEmpty()) ? book.getTitle() : fileName;
+
+        String bookId = UUID.randomUUID().toString().replace("-", "");
+
+        List<String> pageUrls = new ArrayList<>();
+        List<Resource> contents = book.getContents();
+
+        StringBuilder currentHtmlBuffer = new StringBuilder();
+        int currentLength = 0;
+        int pageCounter = 1;
+
+        log.info("开始解析书籍: {} (ID: {})", bookTitle, bookId);
+
+        for (Resource res : contents) {
+            try {
+                String html = new String(res.getData(), StandardCharsets.UTF_8);
+                Document doc = Jsoup.parse(html);
+                Element body = doc.body();
+
+                body.select("script, style, meta, link, title, iframe, head").remove();
+
+                if (isContentEmpty(body)) continue;
+
+                removeInvalidLinks(body);
+                handleImagesLocal(doc, book, res.getHref(), bookId);
+
+                for (Element child : body.children()) {
+                    String childHtml = child.outerHtml();
+                    int childLen = child.text().length();
+
+                    if (!child.select("img").isEmpty() || child.tagName().equalsIgnoreCase("img") || child.tagName().equalsIgnoreCase("svg")) {
+                        childLen += 1000;
+                    }
+
+                    int minPageThreshold = 800;
+                    if ((currentLength + childLen > charsPerPage) && (currentLength > minPageThreshold)) {
+                        savePage(bookId, pageCounter, currentHtmlBuffer.toString());
+                        String pageUrl = generateUrl(bookId, pageCounter);
+                        pageUrls.add(pageUrl);
+                        bookmarkService.createBookmarkTokenInLocal(bookTitle, bookTitle + " (" + pageCounter + ")", pageUrl);
+                        currentHtmlBuffer.setLength(0);
+                        currentLength = 0;
+                        pageCounter++;
+                    }
+                    currentHtmlBuffer.append(childHtml);
+                    currentLength += childLen;
+                }
+            } catch (Exception e) {
+                log.error("解析章节失败: {}", res.getHref(), e);
+            }
+        }
+
+        if (!currentHtmlBuffer.isEmpty()) {
+            savePage(bookId, pageCounter, currentHtmlBuffer.toString());
+            String pageUrl = generateUrl(bookId, pageCounter);
+            pageUrls.add(pageUrl);
+            bookmarkService.createBookmarkTokenInLocal(bookTitle, bookTitle + " (" + pageCounter + ") - End", pageUrl);
+        }
+        return pageUrls;
+    }
+
+    private void savePage(String bookId, int pageIndex, String content) {
+        localBookService.saveChapter(bookId, pageIndex, content);
+    }
+
+    private String generateUrl(String bookId, int pageIndex) {
+        String base = webAppUrl;
+        if (base == null || base.isEmpty()) {
+            base = "http://localhost:18088";
+        }
+        if (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base + "/read/" + bookId + "/" + pageIndex;
+    }
+
+    private void handleImagesLocal(Document doc, Book book, String currentResourceHref, String bookId) {
+        List<Element> images = new ArrayList<>(doc.select("img"));
+        for (Element img : images) {
+            String src = img.attr("src");
+            if (src.startsWith("http")) continue;
+
+            try {
+                String imageHref = resolveHref(currentResourceHref, src);
+                Resource imageRes = book.getResources().getByHref(imageHref);
+
+                if (imageRes != null) {
+                    byte[] data = imageRes.getData();
+
+                    if (data.length < 1024 || isImageTooSmall(data)) {
+                        img.remove();
+                        continue;
+                    }
+
+                    String fileName = new File(src).getName();
+                    String safeFileName = UUID.randomUUID().toString().substring(0, 8) + "_" + fileName.replaceAll("[^a-zA-Z0-9.-]", "_");
+                    String localPath = localBookService.saveImage(bookId, safeFileName, data);
+
+                    if (localPath != null) {
+                        img.attr("src", localPath);
+                        img.attr("style", "max-width: 100%; height: auto; display: block; margin: 10px auto;");
+                    } else {
+                        img.remove();
+                    }
+                } else {
+                    img.remove();
+                }
+            } catch (Exception e) {
+                log.warn("图片处理异常: {}", src);
+                img.remove();
+            }
+        }
+    }
+
+    private boolean isImageTooSmall(byte[] data) {
+        try {
+            ByteArrayInputStream bais = new ByteArrayInputStream(data);
+            BufferedImage bi = ImageIO.read(bais);
+            if (bi == null) return false;
+            return bi.getWidth() < 50 || bi.getHeight() < 50;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private Book loadEpubLeniently(byte[] data) throws IOException {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
+             ZipInputStream zis = new ZipInputStream(bais);
+             ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ZipOutputStream zos = new ZipOutputStream(baos)) {
+
+            ZipEntry entry;
+            byte[] buffer = new byte[4096];
+
+            while (true) {
+                try {
+                    entry = zis.getNextEntry();
+                    if (entry == null) break;
+                } catch (Exception e) {
+                    log.warn("ZIP 流结构异常，停止读取后续内容: {}", e.getMessage());
+                    break;
+                }
+                try {
+                    ZipEntry newEntry = new ZipEntry(entry.getName());
+                    zos.putNextEntry(newEntry);
+
+                    int len;
+                    try {
+                        while ((len = zis.read(buffer)) > 0) {
+                            zos.write(buffer, 0, len);
+                        }
+                    } catch (Exception e) {
+                        log.warn("文件内容损坏 (CRC/截断)，已跳过剩余部分: {}", entry.getName());
+                    }
+
+                    zos.closeEntry();
+                    zis.closeEntry();
+                } catch (Exception e) {
+                    log.warn("写入 ZIP 条目失败: {}, 跳过", entry.getName());
+                }
+            }
+            zos.finish();
+
+            log.info("EPUB 流式修复完成，尝试重新解析...");
+            return new EpubReader().readEpub(new ByteArrayInputStream(baos.toByteArray()));
         }
     }
 }
