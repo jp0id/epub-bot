@@ -31,7 +31,7 @@
 | `APP_CHARS_PER_PAGE`                  | `int`    | `10000`                    | 每一页的字数                                             |
 | `APP_SAVE`                            | `string` | `cloudflare`               | 数据存储位置local/cloudflare                             |
 | `TELEGRAM_BOT_WEBAPP_URL`             | `string` | `null`                     | 服务地址，必须使用https协议                                   |
-| `CLOUD_R2_ACCESS_KEY`                 | `string` | `null`                     |                                                    |
+| `CLOUD_R2_ACCESS_KEY`                 | `string` | `null`                     | https://dash.cloudflare.com/fa29c8cdcb9bd46b60d72d2a6caf0ac3/r2/api-tokens|
 | `CLOUD_R2_SECRET_KEY`                 | `string` | `null`                     |                                                    |
 | `CLOUD_R2_ACCOUNT_ID`                 | `string` | `null`                     |                                                    |
 | `CLOUD_R2_BUCKET_NAME`                | `string` | `epub-storage`             | r2的名称                                              |
