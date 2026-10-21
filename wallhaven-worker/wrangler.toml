@@ -1,0 +1,21 @@
+name = "wallhaven-image-bot"
+main = "src/index.ts"
+compatibility_date = "2026-10-21"
+
+[triggers]
+crons = ["*/30 * * * *"]
+
+[vars]
+WALLHAVEN_TELEGRAM_API_BASE = "https://api.telegram.org"
+WALLHAVEN_API_URL = "https://wallhaven.cc/api/v1/search"
+WALLHAVEN_CATEGORIES = "000"
+WALLHAVEN_PURITY = "000"
+WALLHAVEN_IMAGES_PER_RUN = "5"
+WALLHAVEN_TOP_IMAGES_PER_RUN = "5"
+WALLHAVEN_IMAGE_SOURCE = "path"
+WALLHAVEN_MAX_IMAGE_BYTES = "40000000"
+WALLHAVEN_SENT_TTL_SECONDS = "2592000"
+
+[[kv_namespaces]]
+binding = "DELIVERIES"
+id = "b6e3b8db1f8a4bf0b3afc287eff8d0da"
